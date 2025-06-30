@@ -1,0 +1,55 @@
+{
+  "name": "dylans-animated-tokens",
+  "title": "Dylan's Animated Tokens",
+  "description": "A module that enables animated directional tokens for Foundry VTT",
+  "authors": [
+    {
+      "name": "RightHandOfVecna",
+      "url": "https://github.com/righthandofvecna"
+    }
+  ],
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12.331",
+    "maximum": "12"
+  },
+  "relationships": {
+    "requires": [
+      {
+        "id": "lib-wrapper",
+        "type": "module",
+        "compatibility": {
+          "minimum": "1.0.0.0",
+          "verified": "1.13.2.0"
+        }
+      },
+      {
+        "id": "sequencer",
+        "type": "module",
+        "compatibility": {
+          "minimum": "3.1.0",
+          "verified": "3.4.3"
+        }
+      },
+		  {
+        "id": "socketlib",
+        "type": "module",
+        "compatibility": {
+          "verified": "1.1.0"
+        }
+		  }
+    ]
+  },
+  "esmodules": [
+    "dylans-animated-tokens.js"
+  ],
+  "styles": [],
+  "languages": [
+    {"lang": "en", "name": "English", "path": "lang/en.json"}
+  ],
+	"socket": true,
+  "url": "https://github.com/righthandofvecna/dylans-animated-tokens",
+  "manifest": "https://github.com/righthandofvecna/dylans-animated-tokens/releases/latest/download/module.json",
+  "download": "https://github.com/righthandofvecna/dylans-animated-tokens/releases/download/v1.0.0/module.zip"
+}

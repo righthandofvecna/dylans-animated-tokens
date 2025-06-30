@@ -1,0 +1,22 @@
+{
+    "DAT": {
+        "SheetStyle": {
+            "DLRU": {
+                "Label": "DLRU",
+                "Hint": "A spritesheet that animates in the order Down, Left, Right, Up."
+            },
+            "DLRUReduced": {
+                "Label": "DLRUReduced",
+                "Hint": "A spritesheet that animates in the order Down, Left, Right, Up, but duplicates the first frame in each row."
+            },
+            "Eight": {
+                "Label": "8-Directional",
+                "Hint": "A spritesheet that has all four orthogonal directions and all four diagonal directions."
+            },
+            "Diagonal": {
+                "Label": "Diagonal",
+                "Hint": "A spritesheet that has all four diagonal directions."
+            }
+        }
+    }
+}
