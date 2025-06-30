@@ -4,7 +4,7 @@ ver:
 
 release: ver
 	npx esbuild js/main.mjs --bundle --minify --outfile=dylans-animated-tokens.js
-	zip module.zip -r audio fonts img lang templates css/main.css dylans-animated-tokens.js module.json
+	zip module.zip -r lang templates dylans-animated-tokens.js module.json
 	rm dylans-animated-tokens.js
 	echo "import * as main from './js/main.mjs';" > dylans-animated-tokens.js
 
