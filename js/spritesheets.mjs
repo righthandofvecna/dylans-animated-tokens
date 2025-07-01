@@ -224,6 +224,49 @@ function sliceNihey(sheetKey, slicingInfo, frames) {
   }
 }
 
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Universal LPC Spritesheet style
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceUniversalLPC(sheetKey, slicingInfo, frames) {
+  const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / 13, slicingInfo.meta.size.h / 54];
+  for (let c=0; c<9; c++) {
+    for (let r=0; r<4; r++) {
+      const direction = (()=>{
+        switch (r) {
+          case 0: return "up";
+          case 1: return "left";
+          case 2: return "down";
+          case 3: return "right";
+        }
+      })();
+      const key = `${sheetKey}-${direction}${c}`;
+
+      slicingInfo.animations[direction].push(key);
+      // handle the fact that this sheet doesn't have diagonals
+      if (direction === "down") {
+        slicingInfo.animations.downleft.push(key);
+        slicingInfo.animations.downright.push(key);
+      } else if (direction === "left") {
+        slicingInfo.animations.upleft.push(key);
+      } else if (direction === "right") {
+        slicingInfo.animations.upright.push(key);
+      }
+
+      slicingInfo.frames[key] = {
+        frame: { x: frameWidth * c, y: frameHeight * (r + 8), w: frameWidth, h: frameHeight },
+        sourceSize: { w: frameWidth, h: frameHeight },
+        spriteSourceSize: { x: 0, y: 0, w: frameWidth, h: frameHeight },
+      }
+    }
+  }
+}
+
 
 export class SpritesheetGenerator {
 
@@ -254,7 +297,13 @@ export class SpritesheetGenerator {
       hint: "DAT.SheetStyle.Nihey.Hint",
       slicer: sliceNihey,
       frames: 3, // force this to be 3 for nihey
-    }
+    },
+    universalLPC: {
+      label: "DAT.SheetStyle.UniversalLPC.Label",
+      hint: "DAT.SheetStyle.UniversalLPC.Hint",
+      slicer: sliceUniversalLPC,
+      frames: 13, // force this to be 13 for universalLPC
+    },
   };
 
   static DIRECTIONS = {
