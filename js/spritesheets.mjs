@@ -47,13 +47,13 @@ function sliceDLRU(sheetKey, slicingInfo, frames) {
 /**
  * A function to slice a spritesheet into its component frames.
  * 
- * For the Down-Left-Right-Up Reduced (DLRU Reduced) style
+ * For the Down-Up-Right-Left Reduced (DURL Reduced) style
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
  * @param {*} frames 
  */
-function sliceDLRUReduced(sheetKey, slicingInfo, frames) {
+function sliceDURLeduced(sheetKey, slicingInfo, frames) {
   frames = 3; // force this to be 3 for dlruReduced
   const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / frames, slicingInfo.meta.size.h / 4];
   for (let c=0; c<frames; c++) {
@@ -233,10 +233,10 @@ export class SpritesheetGenerator {
       hint: "DAT.SheetStyle.DLRU.Hint",
       slicer: sliceDLRU,
     },
-    dlruReduced: {
-      label: "DAT.SheetStyle.DLRUReduced.Label",
-      hint: "DAT.SheetStyle.DLRUReduced.Hint",
-      slicer: sliceDLRUReduced,
+    durlReduced: {
+      label: "DAT.SheetStyle.DURLReduced.Label",
+      hint: "DAT.SheetStyle.DURLReduced.Hint",
+      slicer: sliceDURLeduced,
     },
     eight: {
       label: "DAT.SheetStyle.Eight.Label",

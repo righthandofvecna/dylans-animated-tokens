@@ -5,9 +5,9 @@
                 "Label": "DLRU",
                 "Hint": "A spritesheet that animates in the order Down, Left, Right, Up."
             },
-            "DLRUReduced": {
-                "Label": "DLRUReduced",
-                "Hint": "A spritesheet that animates in the order Down, Left, Right, Up, but duplicates the first frame in each row."
+            "DURLReduced": {
+                "Label": "DURLReduced",
+                "Hint": "A spritesheet that animates in the order Down, Up, Right, Left, but duplicates the first frame in each row."
             },
             "Eight": {
                 "Label": "8-Directional",
