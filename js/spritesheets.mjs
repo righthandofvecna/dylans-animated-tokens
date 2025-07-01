@@ -175,6 +175,55 @@ function sliceDiagonal(sheetKey, slicingInfo, frames) {
   }
 }
 
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Nihey Spritesheet style
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceNihey(sheetKey, slicingInfo, frames) {
+  frames = 3; // force this to be 3 for Nihey
+  const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / frames, slicingInfo.meta.size.h / 4];
+  for (let c=0; c<frames; c++) {
+    for (let r=0; r<4; r++) {
+      const direction = (()=>{
+        switch (r) {
+          case 0: return "down";
+          case 1: return "up";
+          case 2: return "right";
+          case 3: return "left";
+        }
+      })();
+      const key = `${sheetKey}-${direction}${c}`;
+
+      slicingInfo.animations[direction].push(key);
+      // handle the fact that this sheet doesn't have diagonals
+      if (direction === "down") {
+        slicingInfo.animations.downleft.push(key);
+        slicingInfo.animations.downright.push(key);
+      } else if (direction === "left") {
+        slicingInfo.animations.upleft.push(key);
+      } else if (direction === "right") {
+        slicingInfo.animations.upright.push(key);
+      }
+
+      slicingInfo.frames[key] = {
+        frame: { x: frameWidth * c, y: frameHeight * r, w: frameWidth, h: frameHeight },
+        sourceSize: { w: frameWidth, h: frameHeight },
+        spriteSourceSize: { x: 0, y: 0, w: frameWidth, h: frameHeight },
+      }
+    }
+  }
+
+  // duplicate the second texture of each row
+  for (const [k, anim] of Object.entries(slicingInfo.animations)) {
+    slicingInfo.animations[k] = [anim[1], anim[0], anim[1], anim[2]];
+  }
+}
+
 
 export class SpritesheetGenerator {
 
@@ -199,6 +248,11 @@ export class SpritesheetGenerator {
       hint: "DAT.SheetStyle.Diagonal.Hint",
       slicer: sliceDiagonal,
     },
+    nihey: {
+      label: "DAT.SheetStyle.Nihey.Label",
+      hint: "DAT.SheetStyle.Nihey.Hint",
+      slicer: sliceNihey,
+    }
   };
 
   static DIRECTIONS = {
