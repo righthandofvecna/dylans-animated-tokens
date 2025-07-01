@@ -237,6 +237,7 @@ export class SpritesheetGenerator {
       label: "DAT.SheetStyle.DURLReduced.Label",
       hint: "DAT.SheetStyle.DURLReduced.Hint",
       slicer: sliceDURLeduced,
+      frames: 3, // force this to be 3 for durlReduced
     },
     eight: {
       label: "DAT.SheetStyle.Eight.Label",
@@ -252,6 +253,7 @@ export class SpritesheetGenerator {
       label: "DAT.SheetStyle.Nihey.Label",
       hint: "DAT.SheetStyle.Nihey.Hint",
       slicer: sliceNihey,
+      frames: 3, // force this to be 3 for nihey
     }
   };
 

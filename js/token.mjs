@@ -38,6 +38,10 @@ async function OnRenderTokenConfig(config, html, context) {
       ...(predefinedSheetSettings ?? {}),
       MODULENAME,
     };
+    const SHEET_STYLE = SpritesheetGenerator.SHEET_STYLES[data.sheetstyle];
+    if (SHEET_STYLE?.frames !== undefined) {
+      data.animationframes = SHEET_STYLE.frames;
+    }
 
     // Populate the dropdown for the types of spritesheet layouts available
     data.sheetStyleOptions = Object.entries(SpritesheetGenerator.SHEET_STYLES).reduce((allOptions, [val, option])=>{
@@ -74,7 +78,7 @@ async function OnRenderTokenConfig(config, html, context) {
     }
 
     // additional spritesheet-specific configurations
-    data.showframes = (form.querySelector(`[name='flags.${MODULENAME}.sheetstyle']`)?.value ?? data.sheetstyle) != "trainer3";
+    data.showframes = SHEET_STYLE?.frames === undefined;
     data.showidle = game.settings.get(MODULENAME, "playIdleAnimations") && !data.separateidle;
     data.hide = !data.spritesheet || isPredefined;
     data.hideaux = !data.spritesheet;

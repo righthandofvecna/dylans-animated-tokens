@@ -6,7 +6,7 @@
                 "Hint": "A spritesheet that animates in the order Down, Left, Right, Up."
             },
             "DURLReduced": {
-                "Label": "DURLReduced",
+                "Label": "DURL Reduced",
                 "Hint": "A spritesheet that animates in the order Down, Up, Right, Left, but duplicates the first frame in each row."
             },
             "Eight": {
