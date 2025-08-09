@@ -271,13 +271,13 @@ function sliceUniversalLPC(sheetKey, slicingInfo, frames) {
 /**
  * A function to slice a spritesheet into its component frames.
  * 
- * For the Sleeping Robot style
+ * For the Sleeping Robot's Memao style
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
  * @param {*} frames 
  */
-function sliceSleepingRobot(sheetKey, slicingInfo, frames) {
+function sliceMemao(sheetKey, slicingInfo, frames) {
   slicingInfo.animations = {
     ...slicingInfo.animations,
     ...Object.fromEntries(Object.keys(SpritesheetGenerator.DIRECTIONS).map(k=>[`idle${k}`,[]])),
@@ -364,11 +364,11 @@ export class SpritesheetGenerator {
       slicer: sliceUniversalLPC,
       frames: 13, // force this to be 13 for universalLPC
     },
-    sleepingRobot: {
-      label: "DAT.SheetStyle.SleepingRobot.Label",
-      hint: "DAT.SheetStyle.SleepingRobot.Hint",
-      slicer: sliceSleepingRobot,
-      frames: 6, // force this to be 6 for sleepingRobot
+    memao: {
+      label: "DAT.SheetStyle.Memao.Label",
+      hint: "DAT.SheetStyle.Memao.Hint",
+      slicer: sliceMemao,
+      frames: 6, // force this to be 6 for memao
       includesIdle: true, // this style includes an idle animation
     },
   };
