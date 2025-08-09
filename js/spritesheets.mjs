@@ -268,6 +268,66 @@ function sliceUniversalLPC(sheetKey, slicingInfo, frames) {
 }
 
 
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Sleeping Robot style
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceSleepingRobot(sheetKey, slicingInfo, frames) {
+  slicingInfo.animations = {
+    ...slicingInfo.animations,
+    ...Object.fromEntries(Object.keys(SpritesheetGenerator.DIRECTIONS).map(k=>[`idle${k}`,[]])),
+    ...Object.fromEntries(Object.keys(SpritesheetGenerator.DIRECTIONS).map(k=>[`run${k}`,[]])),
+  };
+  const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / 8, slicingInfo.meta.size.h / 8];
+  for (let f=0; f<64; f++) {
+    const c = f % 8;
+    const r = Math.floor(f / 8);
+    const direction = (()=> {
+      if (f < 16) return `idle${["down", "up", "left", "right"][~~(f/4)]}`;
+      if (f < 40) return ["down", "up", "left", "right"][~~((f-16)/6)];
+      if (f < 64) return `run${["down", "up", "left", "right"][~~((f-40)/6)]}`;
+    })();
+    const key = `${sheetKey}-${direction}${c}`;
+
+    slicingInfo.animations[direction].push(key);
+    // handle the fact that this sheet doesn't have diagonals
+    if (direction === "down") {
+      slicingInfo.animations.downleft.push(key);
+      slicingInfo.animations.downright.push(key);
+    } else if (direction === "left") {
+      slicingInfo.animations.upleft.push(key);
+    } else if (direction === "right") {
+      slicingInfo.animations.upright.push(key);
+    } else if (direction === "idledown") {
+      slicingInfo.animations.idledownleft.push(key);
+      slicingInfo.animations.idledownright.push(key);
+    } else if (direction === "idleleft") {
+      slicingInfo.animations.idleupleft.push(key);
+    } else if (direction === "idleright") {
+      slicingInfo.animations.idleupright.push(key);
+    } else if (direction === "rundown") {
+      slicingInfo.animations.rundownleft.push(key);
+      slicingInfo.animations.rundownright.push(key);
+    } else if (direction === "runleft") {
+      slicingInfo.animations.runupleft.push(key);
+    } else if (direction === "runright") {
+      slicingInfo.animations.runupright.push(key);
+    }
+
+    slicingInfo.frames[key] = {
+      frame: { x: frameWidth * c, y: frameHeight * r, w: frameWidth, h: frameHeight },
+      sourceSize: { w: frameWidth, h: frameHeight },
+      spriteSourceSize: { x: 0, y: 0, w: frameWidth, h: frameHeight },
+    }
+  }
+}
+
+
 export class SpritesheetGenerator {
 
   static SHEET_STYLES = {
@@ -303,6 +363,13 @@ export class SpritesheetGenerator {
       hint: "DAT.SheetStyle.UniversalLPC.Hint",
       slicer: sliceUniversalLPC,
       frames: 13, // force this to be 13 for universalLPC
+    },
+    sleepingRobot: {
+      label: "DAT.SheetStyle.SleepingRobot.Label",
+      hint: "DAT.SheetStyle.SleepingRobot.Hint",
+      slicer: sliceSleepingRobot,
+      frames: 6, // force this to be 6 for sleepingRobot
+      includesIdle: true, // this style includes an idle animation
     },
   };
 

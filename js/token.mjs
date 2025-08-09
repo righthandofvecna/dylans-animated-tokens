@@ -309,6 +309,8 @@ export function register() {
     #animationData;
     #priorAnimationData;
     #localOpacity;
+    #idle;
+    #run;
 
     constructor(document) {
       super(document);
@@ -319,6 +321,8 @@ export function register() {
       this.#animationData = this._getAnimationData();
       this.#priorAnimationData = foundry.utils.deepClone(this.#animationData);
       this.#localOpacity = 1;
+      this.#idle = false;
+      this.#run = false;
     }
 
     /** @override */
@@ -421,7 +425,7 @@ export function register() {
         this.#textureKey = genSpritesheetKey;
       }
       this.#updateDirection();
-      this.texture = this.#textures[this.#facing][this.#index];
+      this.texture = this.#getTexture();
     }
 
     get isometric() {
@@ -432,27 +436,54 @@ export function register() {
       return this.#direction;
     }
 
-    get #facing() {
-      if (this.isometric) {
-        const options = [
-          "down",
-          "downright", 
-          "right",
-          "upright",
-          "up",
-          "upleft",
-          "left",
-          "downleft",
-          "down"];
-        return options[options.indexOf(this.#direction)+1];
-      }
-      return this.#direction;
+    #getTextureList() {
+      if (!this.isTileset || this.#textures == null) return null;
+      const facing = (()=>{
+        if (this.isometric) {
+          const options = [
+            "down",
+            "downright", 
+            "right",
+            "upright",
+            "up",
+            "upleft",
+            "left",
+            "downleft",
+            "down"];
+          return options[options.indexOf(this.#direction)+1];
+        }
+        return this.#direction;
+      })();
+      const animation = (()=>{
+        if (this.#idle && !this.separateIdle && this.#textures[`idle${facing}`] !== undefined) {
+          return `idle${facing}`;
+        }
+        if (this.#run && this.#textures[`run${facing}`] !== undefined) {
+          return `run${facing}`;
+        }
+        return facing;
+      })();
+      return this.#textures[animation];
+    }
+
+    #getTexture() {
+      const textureList = this.#getTextureList();
+      if (!textureList) return null;
+      const index = (()=>{
+        const framesInAnimation = textureList.length;
+        if (this.#idle && this.separateIdle) {
+          return 0;
+        }
+        const idxOffset = this.separateIdle ? 1 : 0;
+        return idxOffset + ( this.#index % (framesInAnimation - idxOffset) );
+      })();
+      return textureList[index];
     }
 
     set direction(value) {
       this.#direction = value;
       if (this.#textures != null) {
-        this.texture = this.#textures[this.#facing][this.#index];
+        this.texture = this.#getTexture();
         if (this.mesh.texture != this.texture) {
           this.mesh.texture = this.texture;
           this.renderFlags.set({
@@ -542,7 +573,7 @@ export function register() {
       this.#updateDirection();
       this.#index = 0;
       if (this.#textures != null) {
-        this.texture = this.#textures[this.#facing][this.#index];
+        this.texture = this.#getTexture();
         if (this.mesh.texture != this.texture) {
           this.mesh.texture = this.texture;
           this.renderFlags.set({
@@ -576,8 +607,10 @@ export function register() {
         const { sizeX, sizeY } = game?.scenes?.active?.grid ?? { sizeX: 100, sizeY: 100 };
         const manhattan = (Math.abs((to.x ?? from.x) - from.x) / sizeX) + (Math.abs((to.y ?? from.y) - from.y) / sizeY);
         if (manhattan < (game.settings.get(MODULENAME, "runDistance") ?? 5)) {
+          this.#run = false;
           return game.settings.get(MODULENAME, "walkSpeed") ?? 4;
         }
+        this.#run = true;
         return game.settings.get(MODULENAME, "runSpeed") ?? 8;
       })();
       // Get the animation duration and create the animation context
@@ -627,7 +660,8 @@ export function register() {
     }
 
     startIdleAnimation() {
-      const fia = this.framesInAnimation;
+      this.#idle = true;
+      const fia = this.#getTextureList()?.length ?? 0;
       if (fia <= 1) return;
       const iad = this.idleAnimationDuration;
       if (iad <= 0) return;
@@ -677,12 +711,6 @@ export function register() {
       this._onAnimationUpdate(changes, context);
     }
 
-    get framesInAnimation() {
-      if (!this.isTileset || this.#textures == null) return 1;
-      const idxOffset = this.separateIdle ? 1 : 0;
-      return this.#textures[this.#facing].length - idxOffset;
-    }
-
     _onAnimationUpdate(changed, context) {
       const irrelevant = !["x", "y", "rotation", "frame"].some(p=>foundry.utils.hasProperty(changed, p));
       if (irrelevant || !this.isTileset || this.#textures == null) return super._onAnimationUpdate(changed, context);
@@ -698,30 +726,34 @@ export function register() {
       // set the direction
       const dx = (context?.to?.x ?? changed.x ?? 0) - (changed.x ?? context?.to?.x ?? 0);
       const dy = (context?.to?.y ?? changed.y ?? 0) - (changed.y ?? context?.to?.y ?? 0);
-      if (dx != 0 || dy != 0 || changed.frame != undefined) {
-        if (this.document._spinning) { // spinning
-          this.#index = 0;
-          this.#direction = ["down", "right", "up", "left"][frame % 4];
-        } else { // normal animation
-          if (dx != 0 || dy != 0) this.#direction = getDirection(dx, dy);
-          const idxOffset = this.separateIdle ? 1 : 0;
-          this.#index = idxOffset + ( frame % this.framesInAnimation );
-        }
-
-        // don't animate rotation while moving
+      if (changed.frame != undefined) { // idle animation
+        this.#idle = true;
         if (changed.rotation != undefined) {
-          delete changed.rotation;
+          this.#direction = getDirectionFromAngle(changed.rotation);
+        } else if (dx != 0 || dy != 0) {
+          this.#direction = getDirection(dx, dy);
+          this.#idle = false;
         }
-      } else {
-        this.#updateDirection();
+        this.#index = frame;
+      } else if (this._spinning && (dx != 0 || dy != 0)) { // spinning animation
+        this.#idle = false;
         this.#index = 0;
+        this.#direction = ["down", "right", "up", "left"][frame % 4];
+      } else if (dx != 0 || dy != 0) {  // normal animation
+        this.#idle = false;
+        this.#direction = getDirectionFromAngle(changed.rotation ?? this.document.rotation);
+        this.#index = frame;
+      } else {
+        this.#idle = true;
+        this.#direction = getDirectionFromAngle(changed.rotation ?? this.document.rotation);
+        this.#index = 0; // no movement, reset to first frame
       }
 
       if (this.document._sliding) { // slide with one leg out
-        this.#index = Math.min(1, this.#textures[this.#facing].length);
+        this.#index = 1;
       }
 
-      const newTexture = this.#textures[this.#facing][this.#index];
+      const newTexture = this.#getTexture();
       if (this.mesh.texture != newTexture) {
         this.mesh.texture = newTexture;
         this.renderFlags.set({
