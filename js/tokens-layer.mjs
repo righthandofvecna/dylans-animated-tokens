@@ -5,7 +5,7 @@ import { getAllInFollowChain } from "./module-compatibility/follow-me.mjs";
  * Extended TokenLayer for handling token collision detection
  */
 export function register() {
-  class TokenLayerPokemonAssets extends CONFIG.Canvas.layers.tokens.layerClass {
+  class TokenLayerDAT extends CONFIG.Canvas.layers.tokens.layerClass {
     /**
      * Determine whether the provided grid space is being occupied by a token which should block the provided token
      * @param {GridOffset3D} gridSpace            The grid space to check
@@ -91,5 +91,5 @@ export function register() {
     }
   }
 
-  CONFIG.Canvas.layers.tokens.layerClass = TokenLayerPokemonAssets;
+  CONFIG.Canvas.layers.tokens.layerClass = TokenLayerDAT;
 }
