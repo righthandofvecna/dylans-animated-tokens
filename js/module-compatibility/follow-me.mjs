@@ -429,7 +429,6 @@ function OnManualMove(token, update, operation, follower_updates) {
   }), { dist: 0, x: t.x, y: t.y})?.dist ?? 0;
   const originalMovement = mvdist(token);
   for (const follower of followers) {
-    console.log(originalMovement);
     operation.animation.follower_speed_modifiers[follower.id] = mvdist(follower) / originalMovement;
   };
 }

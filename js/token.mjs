@@ -607,10 +607,10 @@ export function register() {
         } else {
           const { sizeX, sizeY } = game?.scenes?.active?.grid ?? { sizeX: 100, sizeY: 100 };
           const manhattan = (Math.abs((to.x ?? from.x) - from.x) / sizeX) + (Math.abs((to.y ?? from.y) - from.y) / sizeY);
-          if (manhattan < (game.settings.get(MODULENAME, "runDistance") ?? 5)) {
+          if (manhattan != 0 && manhattan < (game.settings.get(MODULENAME, "runDistance") ?? 5)) {
             this.#run = false;
             desiredSpeed = game.settings.get(MODULENAME, "walkSpeed") ?? 4;
-          } else {
+          } else if (manhattan != 0) {
             this.#run = true;
             desiredSpeed = game.settings.get(MODULENAME, "runSpeed") ?? 8;
           }
