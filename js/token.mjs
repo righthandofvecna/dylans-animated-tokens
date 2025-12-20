@@ -1,6 +1,7 @@
 import { early_isGM, isTheGM, MODULENAME, tokenScene, getCombatsForScene } from "./utils.mjs";
-// import { getAllInFollowChain, getAllFollowing } from "./module-compatibility/follow-me.mjs";
+import { getAllInFollowChain, getAllFollowing } from "./module-compatibility/follow-me.mjs";
 import { SpritesheetGenerator } from "./spritesheets.mjs";
+import { NonPrivateTokenMixin } from "./foundry/token.mjs";
 
 /**
  * Add the spritesheet settings to the token config page
@@ -38,15 +39,24 @@ async function OnRenderTokenConfig(config, html, context) {
       ...(predefinedSheetSettings ?? {}),
       MODULENAME,
     };
-    const SHEET_STYLE = SpritesheetGenerator.SHEET_STYLES[data.sheetstyle];
+    
+    // Convert aliased sheet styles to their canonical equivalents
+    let SHEET_STYLE = SpritesheetGenerator.SHEET_STYLES[data.sheetstyle];
+    if (SHEET_STYLE?.alias) {
+      data.sheetstyle = SHEET_STYLE.alias;
+      SHEET_STYLE = SpritesheetGenerator.SHEET_STYLES[data.sheetstyle];
+    }
+    
     if (SHEET_STYLE?.frames !== undefined) {
       data.animationframes = SHEET_STYLE.frames;
     }
 
-    // Populate the dropdown for the types of spritesheet layouts available
-    data.sheetStyleOptions = Object.entries(SpritesheetGenerator.SHEET_STYLES).reduce((allOptions, [val, option])=>{
-      return allOptions + `<option value="${val}" ${data.sheetstyle === val ? "selected" : ""}>${game.i18n.localize(option.label)}</option>`;
-    }, "");
+    // Populate the dropdown for the types of spritesheet layouts available (exclude aliases)
+    data.sheetStyleOptions = Object.entries(SpritesheetGenerator.SHEET_STYLES)
+      .filter(([val, option]) => !option.alias) // Filter out aliased entries
+      .reduce((allOptions, [val, option])=>{
+        return allOptions + `<option value="${val}" ${data.sheetstyle === val ? "selected" : ""}>${game.i18n.localize(option.label)}</option>`;
+      }, "");
 
     // checkbox for whether or not this should be a spritesheet!
     if (!form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`)) {
@@ -56,6 +66,19 @@ async function OnRenderTokenConfig(config, html, context) {
     form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`).readonly = isPredefined;
 
     // locks for "unlockedanchor" and "unlockedfit"
+    for (const [tf,tfInput] of Object.entries({
+      "fit": new foundry.data.fields.StringField({ label: "Fit", choices: ()=>({"fill": "Fill", "contain": "Contain", "cover": "Cover", "width": "Width", "height": "Height"}) }),
+      "anchorX": new foundry.data.fields.NumberField({ label: "Anchor X" }),
+      "anchorY": new foundry.data.fields.NumberField({ label: "Anchor Y" })
+    })) {
+      if (!form.querySelector(`[name='texture.${tf}']`)) {
+        // place to put it
+        let spot = $(form).find("fieldset.size");
+        if (!spot.length) spot = $(form);
+        $(spot).append(`<div class="form-group ${tf}"><label>${tfInput.label}</label><div class="form-fields">${tfInput.toInput({ name: "texture." + tf, value: token?.texture?.[tf] }).outerHTML}</div></div>`);
+      }
+    }
+
     $(form).find(".toggle-link-anchor-to-sheet").remove();
     const unlockedAnchorLink = $(`<a class="toggle-link-anchor-to-sheet" title="${data.unlockedanchor ? "Base Anchors on Sheet" : "Manual Anchors"}" style="margin-left: 0.3em;"><i class="fa-solid fa-fw ${data.unlockedanchor ? "fa-lock-open" : "fa-lock"}"></i></a>`);
     $(form).find('[name="texture.anchorX"]').closest('.form-group').find('> label').append(unlockedAnchorLink);
@@ -63,8 +86,8 @@ async function OnRenderTokenConfig(config, html, context) {
       token.setFlag(MODULENAME, "unlockedanchor", !data.unlockedanchor);
     });
     if (!data.unlockedanchor) {
-      $(form).find('[name="texture.anchorX"]').prop("disabled", true);
-      $(form).find('[name="texture.anchorY"]').prop("disabled", true);
+      $(form).find('[name="texture.anchorX"]').prop("readonly", true);
+      $(form).find('[name="texture.anchorY"]').prop("readonly", true);
     }
 
     $(form).find(".toggle-link-fit-to-sheet").remove();
@@ -74,7 +97,7 @@ async function OnRenderTokenConfig(config, html, context) {
       token.setFlag(MODULENAME, "unlockedfit", !data.unlockedfit);
     });
     if (!data.unlockedfit) {
-      $(form).find('[name="texture.fit"]').prop("disabled", true);
+      $(form).find('[name="texture.fit"]').prop("readonly", true);
     }
 
     // additional spritesheet-specific configurations
@@ -131,12 +154,13 @@ async function OnRenderTokenConfig(config, html, context) {
       }
     }
 
-    const texture = await loadTexture(src, {fallback: CONST.DEFAULT_TOKEN});
+    const texture = await foundry.canvas.loadTexture(src, {fallback: CONST.DEFAULT_TOKEN});
     const { width, height } = texture ?? {};
     if (!width || !height) return;
     const directions = (()=>{
       switch (data.sheetstyle) {
-        case "pmd": return 8;
+        case "pmd":
+        case "eight": return 8;
         default: return 4;
       }
     })();
@@ -145,7 +169,8 @@ async function OnRenderTokenConfig(config, html, context) {
     const scale = form.querySelector("input[name='scale']")?.value ?? 1;
     const anchorY = (()=>{
       switch (data.sheetstyle) {
-        case "pmd": return 0.5;
+        case "pmd":
+        case "eight": return 0.5;
         default: return 1.02 + (0.5 / (-ratio * scale));
       }
     })();
@@ -190,30 +215,28 @@ async function OnRenderTokenConfig(config, html, context) {
 
 
 /**
- * When a token's spritesheet settings have been updated, re-render the token immediately
- * Otherwise, it will take a scene/browser reload to display the changed settings.
+ * When a token's spritesheet settings have been updated, re-render the token immediately.
+ * The token object's _onUpdate method handles cache invalidation.
  * @param {*} token 
  * @param {*} changes 
  * @param {*} metadata 
  * @param {*} user 
- * @returns 
  */
-function OnUpdateToken(token, changes, metadata, user) {
-  if (!changes?.texture?.src &&
-    !changes?.flags?.[MODULENAME]?.sheetstyles &&
-    !changes?.flags?.[MODULENAME]?.animationframes)
-    return;
-
-  const src = changes?.texture?.src ?? token?.texture?.src;
-  if (!src) return;
+async function OnUpdateToken(token, changes, metadata, user) {
+  // Check if any spritesheet-related properties changed
+  const needsRedraw = changes?.texture?.src ||
+                      changes?.flags?.[MODULENAME]?.sheetstyle ||
+                      changes?.flags?.[MODULENAME]?.animationframes ||
+                      changes?.flags?.[MODULENAME]?.spritesheet;
   
-  const tokenObj = token?.object;
-  if (!tokenObj) return
+  if (!needsRedraw) return;
 
-  tokenObj.renderFlags.set({
-    redraw: true
-  });
-  tokenObj.applyRenderFlags();
+  const tokenObj = token?.object;
+  if (!tokenObj) return;
+
+  // Trigger a full redraw - cache invalidation is handled by _onUpdate
+  tokenObj.clear();
+  await tokenObj.draw();
 }
 
 
@@ -223,7 +246,7 @@ function OnUpdateToken(token, changes, metadata, user) {
 
 function OnPreUpdateToken(doc, change, options) {
   if (!doc.getFlag(MODULENAME, "spritesheet")) return;
-
+  
   const ox = doc.x ?? 0;
   const nx = change?.x ?? ox;
   const oy = doc.y ?? 0;
@@ -231,7 +254,7 @@ function OnPreUpdateToken(doc, change, options) {
 
   const dx = nx - ox;
   const dy = ny - oy;
-  if ((dx !== 0 || dy !== 0) && !options.teleport) {
+  if ((dx !== 0 || dy !== 0) && !options.teleport) { // && !game.settings.get("core", "tokenAutoRotate")) {
     change.rotation = getAngleFromDirection(getDirection(dx, dy));
   };
 
@@ -264,7 +287,7 @@ function getAngleFromDirection(d) {
 }
 
 function getDirectionFromAngle(angle) {
-  switch (Math.floor(((angle + 22.5) % 360) / 45)) {
+  switch (( 8 + Math.floor(((angle + 22.5) % 360) / 45) ) % 8) {
     case 0: return "down";
     case 1: return "downleft";
     case 2: return "left";
@@ -287,27 +310,13 @@ function OnCreateCombatant(combatant) {
 }
 
 
-
-
-/** Initialize all the edges for tokens when the canvas refreshes */
-function OnInitializeEdges() {
-  for (const token of canvas.tokens.placeables) {
-    token?.initializeEdges?.();
-  }
-  for (const tile of canvas.tiles.placeables) {
-    tile?.initializeEdges?.();
-  }
-}
-
 export function register() {
-  class TilesetToken extends CONFIG.Token.objectClass {
+  class SpritesheetToken extends NonPrivateTokenMixin(CONFIG.Token.objectClass) {
     #index;
     #textures;
     #textureSrc;
     #textureKey;
     #direction;
-    #animationData;
-    #priorAnimationData;
     #localOpacity;
     #idle;
     #run;
@@ -318,8 +327,6 @@ export function register() {
     }
 
     #initialize() {
-      this.#animationData = this._getAnimationData();
-      this.#priorAnimationData = foundry.utils.deepClone(this.#animationData);
       this.#localOpacity = 1;
       this.#idle = false;
       this.#run = false;
@@ -334,12 +341,12 @@ export function register() {
       this.#direction = "down";
     }
 
-    get isTileset() {
+    get isSpritesheet() {
       return this.document.getFlag(MODULENAME, "spritesheet");
     }
 
     get sheetStyle() {
-      return this.document.getFlag(MODULENAME, "sheetstyle") ?? "trainer";
+      return this.document.getFlag(MODULENAME, "sheetstyle") ?? "dlru";
     }
 
     get animationFrames() {
@@ -358,59 +365,79 @@ export function register() {
       return Promise.allSettled(this.animationContexts.values().map(c=>c.promise))
     }
 
+    static RENDER_FLAGS = foundry.utils.mergeObject(super.RENDER_FLAGS, {
+      refreshIndicators: {},
+      refreshSize: { propagate: [...super.RENDER_FLAGS.refreshSize.propagate, "refreshIndicators"] },
+      refreshShape: { propagate: [...super.RENDER_FLAGS.refreshShape.propagate, "refreshIndicators"] },
+    })
+
     /** @override */
     async _draw(options) {
-      // check if this token has a tileset configured
-      if (!this.isTileset) return super._draw(options);
-      
-      this.#cleanData();
+      // check if this token has a spritesheet configured
+      if (!this.isSpritesheet) {
+        await super._draw(options);
+      } else {
+        this._PRIVATE_cleanData();
 
-      // Load token texture
-      await this.playFromSpritesheet();
-  
-      // Draw the TokenMesh in the PrimaryCanvasGroup
-      this.mesh = canvas.primary.addToken(this);
-  
-      // Initialize token ring
-      // this.#initializeRing();
-      // Can't do this...
-  
-      // Draw the border
-      this.border ||= this.addChild(new PIXI.Graphics());
-  
-      // Draw the void of the TokenMesh
-      if ( !this.voidMesh ) {
-        this.voidMesh = this.addChild(new PIXI.Container());
-        this.voidMesh.updateTransform = () => {};
-        this.voidMesh.render = renderer => this.mesh?._renderVoid(renderer);
+        // Load token texture
+        await this.playFromSpritesheet();
+    
+        // Cache token ring subject texture if needed
+        // const ring = this.document.ring;
+        // if ( ring.enabled && ring.subject.texture ) await foundry.canvas.loadTexture(ring.subject.texture);
+    
+    
+        // Draw the token's PrimarySpriteMesh in the PrimaryCanvasGroup
+        this.mesh = canvas.primary.addToken(this);
+    
+        // Initialize token ring
+        // this.#initializeRing();
+    
+        // Draw the border
+        this.border ||= this.addChild(new PIXI.Graphics());
+    
+        // Draw the void of the token's PrimarySpriteMesh
+        if ( !this.voidMesh ) {
+          this.voidMesh = this.addChild(new PIXI.Container());
+          this.voidMesh.updateTransform = () => {};
+          this.voidMesh.render = renderer => this.mesh?._renderVoid(renderer);
+        }
+    
+        // Draw the detection filter of the token's PrimarySpriteMesh
+        if ( !this.detectionFilterMesh ) {
+          this.detectionFilterMesh = this.addChild(new PIXI.Container());
+          this.detectionFilterMesh.updateTransform = () => {};
+          this.detectionFilterMesh.render = renderer => {
+            if ( this.detectionFilter ) this._renderDetectionFilter(renderer);
+          };
+        }
+    
+        // Draw Token interface components
+        this.bars ||= this.addChild(this._PRIVATE_drawAttributeBars());
+        this.tooltip ||= this.addChild(this._PRIVATE_drawTooltip());
+        this.effects ||= this.addChild(new PIXI.Container());
+        this.targetArrows ||= this.addChild(new PIXI.Graphics());
+        this.targetPips ||= this.addChild(new PIXI.Graphics());
+        this.nameplate ||= this.addChild(this._PRIVATE_drawNameplate());
+        this.sortableChildren = true;
+    
+        // Initialize and draw the ruler
+        if ( this.ruler === undefined ) this.ruler = this._initializeRuler();
+        if ( this.ruler ) await this.ruler.draw();
+    
+        // Add filter effects
+        this._updateSpecialStatusFilterEffects();
+    
+        // Draw elements
+        await this._drawEffects();
+    
+        // Initialize sources
+        if ( !this.isPreview ) this.initializeSources();
       }
-  
-      // Draw the detection filter of the TokenMesh
-      if ( !this.detectionFilterMesh ) {
-        this.detectionFilterMesh = this.addChild(new PIXI.Container());
-        this.detectionFilterMesh.updateTransform = () => {};
-        this.detectionFilterMesh.render = renderer => {
-          if ( this.detectionFilter ) this._renderDetectionFilter(renderer);
-        };
-      }
-  
-      // Draw Token interface components
-      this.bars ||= this.addChild(this.#drawAttributeBars());
-      this.tooltip ||= this.addChild(this.#drawTooltip());
-      this.effects ||= this.addChild(new PIXI.Container());
-  
-      this.target ||= this.addChild(new PIXI.Graphics());
-      this.nameplate ||= this.addChild(this.#drawNameplate());
-  
-      // Add filter effects
-      this._updateSpecialStatusFilterEffects();
-  
-      // Draw elements
-      await this._drawEffects();
-  
-      // Initialize sources
-      if ( !this.isPreview ) this.initializeSources();
 
+      // draw the indicators (caught/uncaught/etc)
+      this.indicators ||= this.addChild(new PIXI.Container());
+      await this._drawIndicators();
     }
 
     async playFromSpritesheet() {
@@ -418,7 +445,7 @@ export function register() {
       if (this.#textures == null || this.#textureSrc !== this.document.texture.src || this.#textureKey !== genSpritesheetKey) {
         let texture;
         if ( this._original ) texture = this._original.texture?.clone();
-        else texture = await loadTexture(this.document.texture.src, {fallback: CONST.DEFAULT_TOKEN});
+        else texture = await foundry.canvas.loadTexture(this.document.texture.src, {fallback: CONST.DEFAULT_TOKEN});
 
         this.#textureSrc = this.document.texture.src;
         this.#textures = await game.modules.get(MODULENAME).api.spritesheetGenerator.getTexturesForToken(this, texture);
@@ -437,7 +464,7 @@ export function register() {
     }
 
     #getTextureList() {
-      if (!this.isTileset || this.#textures == null) return null;
+      if (!this.isSpritesheet || this.#textures == null) return null;
       const facing = (()=>{
         if (this.isometric) {
           const options = [
@@ -510,52 +537,14 @@ export function register() {
       this.mesh.alpha = this.alpha * (this.hover ? Math.clamp(this.#localOpacity, 0.2, 1) : this.#localOpacity ) * this.document.alpha;
     }
 
-    /**
-     * Apply initial sanitizations to the provided input data to ensure that a Token has valid required attributes.
-     * Constrain the Token position to remain within the Canvas rectangle.
-     */
-    #cleanData() {
-      const d = this.scene.dimensions;
-      const {x: cx, y: cy} = this.getCenterPoint({x: 0, y: 0});
-      this.document.x = Math.clamp(this.document.x, -cx, d.width - cx);
-      this.document.y = Math.clamp(this.document.y, -cy, d.height - cy);
-    }
-
-    /* -------------------------------------------- */
-
-    /**
-     * Draw resource bars for the Token
-     * @returns {PIXI.Container}
-     */
-    #drawAttributeBars() {
-      const bars = new PIXI.Container();
-      bars.bar1 = bars.addChild(new PIXI.Graphics());
-      bars.bar2 = bars.addChild(new PIXI.Graphics());
-      return bars;
-    }
-
-    /* -------------------------------------------- */
-
-    /**
-     * Draw the token's nameplate as a text object
-     * @returns {PreciseText}    The Text object for the Token nameplate
-     */
-    #drawNameplate() {
-      const nameplate = new PreciseText(this.document.name, this._getTextStyle());
-      nameplate.anchor.set(0.5, 0);
-      return nameplate;
-    }
-
-    /* -------------------------------------------- */
-
-    /**
-     * Draw a text tooltip for the token which can be used to display Elevation or a resource value
-     * @returns {PreciseText}     The text object used to render the tooltip
-     */
-    #drawTooltip() {
-      const tooltip = new PreciseText(this._getTooltipText(), this._getTextStyle());
-      tooltip.anchor.set(0.5, 1);
-      return tooltip;
+    _canDrag() {
+      try {
+        const scene = this?.document?.parent;
+        const hasCombat = getCombatsForScene(scene?.uuid).length > 0;
+        if (!game.user.isGM && (scene.getFlag(MODULENAME, "disableDrag") && !(scene.getFlag(MODULENAME, "outOfCombat") && hasCombat)))
+          return false;
+      } catch { }
+      return super._canDrag();
     }
 
     #updateDirection() {
@@ -567,7 +556,7 @@ export function register() {
      * @protected
      */
     _refreshRotation() {
-      if (!this.isTileset) return super._refreshRotation();
+      if (!this.isSpritesheet) return super._refreshRotation();
 
       this.mesh.angle = 0;
       this.#updateDirection();
@@ -583,76 +572,51 @@ export function register() {
       }
     }
 
-    /** @override */
-    async animate(to, {duration, easing, movementSpeed, name, ontick, ...options}={}) {
-      // Get the name and the from and to animation data
-      if ( name === undefined ) name = this.animationName;
-      else name ||= Symbol(this.animationName);
-      const from = this.#animationData;
-      this.#animationData.frame = 0
-      if (to.rotation != undefined) {
-        from.rotation = to.rotation ?? from.rotation;
-        delete to.rotation;
-      }
-      to = foundry.utils.filterObject(to, from);
-      let context = this.animationContexts.get(name);
-      if ( context ) to = foundry.utils.mergeObject(context.to, to, {inplace: false});
+    /**
+     * Animate from the old to the new state of this Token.
+     * @param {Partial<TokenAnimationData>} to    The animation data to animate to
+     * @param {TokenAnimationOptions} options     The options that configure the animation behavior
+     * @param {boolean} chained                   Is this animation being chained to the current context?
+     * @returns {Promise<void>}                   A promise which resolves once the animation has finished or stopped
+     */
+    _PRIVATE_animate(to, options, chained) {
+      let from = this._PRIVATE_animationData;
+      from.frame = 0;
+      options.movementSpeed ??= (()=>{
+        let desiredSpeed = 4; // default walk speed
 
-      // Conclude the current animation
-      CanvasAnimation.terminateAnimation(name);
-      if ( context ) this.animationContexts.delete(name);
-
-      movementSpeed ??= (()=>{
-        if (this.document._sliding) return game.settings.get(MODULENAME, "walkSpeed") ?? 4;
-        const { sizeX, sizeY } = game?.scenes?.active?.grid ?? { sizeX: 100, sizeY: 100 };
-        const manhattan = (Math.abs((to.x ?? from.x) - from.x) / sizeX) + (Math.abs((to.y ?? from.y) - from.y) / sizeY);
-        if (manhattan < (game.settings.get(MODULENAME, "runDistance") ?? 5)) {
+        if (this.document._sliding) {
           this.#run = false;
-          return game.settings.get(MODULENAME, "walkSpeed") ?? 4;
+          desiredSpeed = game.settings.get(MODULENAME, "walkSpeed") ?? 4;
+        } else {
+          const { sizeX, sizeY } = game?.scenes?.active?.grid ?? { sizeX: 100, sizeY: 100 };
+          const manhattan = (Math.abs((to.x ?? from.x) - from.x) / sizeX) + (Math.abs((to.y ?? from.y) - from.y) / sizeY);
+          if (manhattan < (game.settings.get(MODULENAME, "runDistance") ?? 5)) {
+            this.#run = false;
+            desiredSpeed = game.settings.get(MODULENAME, "walkSpeed") ?? 4;
+          } else {
+            this.#run = true;
+            desiredSpeed = game.settings.get(MODULENAME, "runSpeed") ?? 8;
+          }
         }
-        this.#run = true;
-        return game.settings.get(MODULENAME, "runSpeed") ?? 8;
+        const multiplier = options.follower_speed_modifiers?.[this.document.id] ?? 1;
+        return desiredSpeed * multiplier;
       })();
-      // Get the animation duration and create the animation context
-      duration ??= this._getAnimationDuration(from, to, {movementSpeed, ...options});
-      const origin = { x: this.x, y: this.y };
-      context = {name, to, origin, duration, time: 0, preAnimate: [], postAnimate: [], onAnimate: []};
 
-      // Animate the first frame
-      this._animateFrame(context);
+      this._origin = {
+        x: this.x,
+        y: this.y,
+      };
 
-      // If the duration of animation is not positive, we can immediately conclude the animation
-      if ( duration <= 0 ) return;
-
-      // Set the animation context
-      this.animationContexts.set(name, context);
-
-      // Prepare the animation data changes
-      const changes = foundry.utils.diffObject(from, to);
-      const attributes = this._prepareAnimation(from, changes, context, options);
-
-      // Dispatch the animation
-      context.promise = CanvasAnimation.animate(attributes, {
-        name,
-        context: this,
-        duration,
-        easing,
-        priority: PIXI.UPDATE_PRIORITY.OBJECTS + 1, // Before perception updates and Token render flags
-        wait: Promise.allSettled(context.preAnimate.map(fn => fn(context))),
-        ontick: (dt, anim) => {
-          context.time = anim.time;
-          if ( ontick ) ontick(dt, anim, this.#animationData);
-          this._animateFrame(context);
-        }
+      return super._PRIVATE_animate(to, options, chained).finally(()=>{
+        if (!this.isSpritesheet) return;
+        // start the idle animation
+        if (this.animationContexts.size == 0) this.startIdleAnimation();
       });
-      await context.promise.finally(() => {
-        if ( this.animationContexts.get(name) === context ) {
-          this.animationContexts.delete(name);
-          // start the idle animation
-          this.startIdleAnimation();
-        }
-        for ( const fn of context.postAnimate ) fn(context);
-      });
+    }
+
+    _getAnimationRotationSpeed() {
+      return Number.POSITIVE_INFINITY; // don't animate rotation
     }
 
     get idleAnimationDuration() {
@@ -660,6 +624,7 @@ export function register() {
     }
 
     startIdleAnimation() {
+      if (this.destroyed) return;
       this.#idle = true;
       const fia = this.#getTextureList()?.length ?? 0;
       if (fia <= 1) return;
@@ -671,20 +636,21 @@ export function register() {
     }
 
     /**
-     * Prepare the animation data changes: performs special handling required for animating rotation (none).
-     * @param {TokenAnimationData} from                         The animation data to animate from
-     * @param {Partial<TokenAnimationData>} changes             The animation data changes
-     * @param {Omit<TokenAnimationContext, "promise">} context  The animation context
-     * @param {object} [options]                                The options that configure the animation behavior
-     * @param {string} [options.transition="fade"]              The desired texture transition type
-     * @returns {CanvasAnimationAttribute[]}                    The animation attributes
+     * Prepare the animation data changes: performs special handling required for animating rotation.
+     * @param {DeepReadonly<TokenAnimationData>} from             The animation data to animate from
+     * @param {Partial<TokenAnimationData>} changes               The animation data changes
+     * @param {Omit<TokenAnimationContext, "promise">} context    The animation context
+     * @param {TokenAnimationOptions} options                     The options that configure the animation behavior
+     * @returns {CanvasAnimationAttribute[]}                      The animation attributes
      * @protected
      */
-    _prepareAnimation(from, changes, context, options = {}) {
+    _prepareAnimation(from, changes, context, options) {
+      if (!this.isSpritesheet) return super._prepareAnimation(from, changes, context, options);
       const attributes = [];
 
-      // Token.#handleRotationChanges(from, changes);
-      // this.#handleTransitionChanges(changes, context, options, attributes);
+      // TODO: handle teleportation
+      SpritesheetToken._PRIVATE_handleRotationChanges(from, changes);
+      // this._PRIVATE_handleTransitionChanges(changes, context, options, attributes);
 
       // Create animation attributes from the changes
       const recur = (changes, parent) => {
@@ -694,33 +660,27 @@ export function register() {
           else if ( type === "number" || type === "Color" ) attributes.push({attribute, parent, to});
         }
       };
-      recur(changes, this.#animationData);
+      recur(changes, this._PRIVATE_animationData);
       return attributes;
     }
 
-    /**
-     * Handle a single frame of a token animation.
-     * @param {TokenAnimationContext} context    The animation context
-     */
-    _animateFrame(context) {
-      if ( context.time >= context.duration ) foundry.utils.mergeObject(this.#animationData, context.to);
-      const changes = foundry.utils.diffObject(this.#priorAnimationData, this.#animationData);
-      foundry.utils.mergeObject(this.#priorAnimationData, this.#animationData);
-      foundry.utils.mergeObject(this.document, this.#animationData, {insertKeys: false});
-      for ( const fn of context.onAnimate ) fn(context);
-      this._onAnimationUpdate(changes, context);
+    _getAnimationData() {
+      return {
+        ...super._getAnimationData(),
+        frame: 0,
+      }
     }
 
     _onAnimationUpdate(changed, context) {
       const irrelevant = !["x", "y", "rotation", "frame"].some(p=>foundry.utils.hasProperty(changed, p));
-      if (irrelevant || !this.isTileset || this.#textures == null) return super._onAnimationUpdate(changed, context);
+      if (irrelevant || !this.isSpritesheet || this.#textures == null) return super._onAnimationUpdate(changed, context);
 
       // get tile size
       const { sizeX, sizeY } = game?.scenes?.active?.grid ?? { sizeX: 100, sizeY: 100 };
 
       const FRAMES_PER_SQUARE = 2;
-      const gdx = Math.abs((changed.x ?? context.origin?.x ?? 0) - context.origin?.x ?? 0) * FRAMES_PER_SQUARE / sizeX;
-      const gdy = Math.abs((changed.y ?? context.origin?.y ?? 0) - context.origin?.y ?? 0) * FRAMES_PER_SQUARE / sizeY;
+      const gdx = Math.abs((changed.x ?? this._origin?.x ?? 0) - (this._origin?.x ?? 0)) * FRAMES_PER_SQUARE / sizeX;
+      const gdy = Math.abs((changed.y ?? this._origin?.y ?? 0) - (this._origin?.y ?? 0)) * FRAMES_PER_SQUARE / sizeY;
       const frame = changed.frame !== undefined ? ~~changed.frame : ~~(gdx + gdy - (Math.min(gdx, gdy) / 2));
 
       // set the direction
@@ -764,14 +724,57 @@ export function register() {
     }
 
     /**
+     * 
+     */
+    async _drawIndicators() {
+      this.indicators.renderable = false;
+
+      // clear caught indicator
+      this.indicators.removeChildren().forEach(c => c.destroy());
+
+      // TODO: add a way for other modules to add indicators here
+
+      this.indicators.sortChildren();
+      this.indicators.renderable = true;
+      this.renderFlags.set({refreshIndicators: true});
+    }
+
+    /**
+     * Refresh the display of the indicators, adjusting its position for the token width and height.
+     * @protected
+     */
+    _refreshIndicators() {
+      const s = canvas.dimensions.uiScale;
+      let i = 0;
+      const size = 20 * s;
+      const rows = Math.floor((this.document.getSize().height / size) + 1e-6);
+
+      // move it to the top-right corner
+      this.indicators.transform.position.x = this.document.getSize().width - size;
+      this.indicators.alpha = 0.75;
+
+      for ( const effect of this.indicators.children ) {
+        effect.width = effect.height = size;
+        effect.x = Math.floor(i / rows) * (-size);
+        effect.y = (i % rows) * size;
+        i++;
+      }
+    }
+
+    _applyRenderFlags(flags) {
+      super._applyRenderFlags(flags);
+      if ( flags.refreshIndicators ) this._refreshIndicators();
+    }
+
+    /**
      * Move the token immediately to the destination if it is teleported.
      * @param {Partial<TokenAnimationData>} to    The animation data to animate to
      */
     _handleTeleportAnimation(to) {
       const changes = {};
-      if ( "x" in to ) this.#animationData.x = changes.x = to.x;
-      if ( "y" in to ) this.#animationData.y = changes.y = to.y;
-      if ( "elevation" in to ) this.#animationData.elevation = changes.elevation = to.elevation;
+      if ( "x" in to ) this._PRIVATE_animationData.x = changes.x = to.x;
+      if ( "y" in to ) this._PRIVATE_animationData.y = changes.y = to.y;
+      if ( "elevation" in to ) this._PRIVATE_animationData.elevation = changes.elevation = to.elevation;
       if ( !foundry.utils.isEmpty(changes) ) {
         const context = {name: Symbol(this.animationName), to: changes, duration: 0, time: 0,
           preAnimate: [], postAnimate: [], onAnimate: []};
@@ -779,187 +782,130 @@ export function register() {
       }
     }
 
-    get shouldHaveEdges() {
-      return game.settings.get(MODULENAME, "tokenCollision") && (!this.document.hidden || game.settings.get(MODULENAME, "tokenCollisionHidden"));
-    }
-
-    /**
-     * Check for collisions, but exclude tokens of the same disposition and tokens in your follow chain
-     */
-    checkCollision(destination, {origin, type="move", mode="any", follow=false}={}) {
-      const collisions = super.checkCollision(destination, { origin, type, mode: "all" });
-      if (!collisions) return collisions;
-
-      const unignoredCollisions = collisions.filter(collision=>collision.edges?.some(edge=>(edge?.object?.document?.disposition != this.document.disposition || game.settings.get(MODULENAME, "tokenCollisionAllied"))));
-
-      if (mode == "all") return unignoredCollisions;
-      return unignoredCollisions[0] || null;
-    }
-
-    initializeEdges({ changes, deleted=false}={}) {
-      // the token has been deleted
-      if ( deleted ) {
-        ["t","r","b","l","tl","tr","bl","br"].forEach(d=>canvas.edges.delete(`${this.id}_${d}`));
-        return;
-      }
-
-      if (!this.shouldHaveEdges) return;
-
-      // re-create the edges for the token
-      const docX = changes?.x ?? this.document.x;
-      const docY = changes?.y ?? this.document.y;
-      const width = changes?.width ?? this.document.width;
-      const height = changes?.height ?? this.document.height;
-
-      const { sizeX: gridX, sizeY: gridY } = canvas.grid;
-      const w = gridX * Math.max(width, 1);
-      const h = gridY * Math.max(height, 1);
-      const wDia = gridX / 2;
-      const hDia = gridY / 2;
-      const wOrth = w - (wDia * 2);
-      const hOrth = h - (hDia * 2);
-      const { x, y } = canvas.grid.getSnappedPoint({ x: docX, y: docY }, { mode: CONST.GRID_SNAPPING_MODES.TOP_LEFT_CORNER });
-
-      const pointList = [];
-      const suffixList = [];
-
-      // if the width or height of the token is < 1, we have to do one corner square, unless it's centered
-      let position = "center";
-      if (width < 1 || height < 1) {
-        const docL = docX;
-        const docR = docX + (gridX * width);
-        const docT = docY;
-        const docB = docY + (gridY * height);
-        if (docL < x + (w / 4)) {
-          if (docT < y + (h / 4)) {
-            position = "tl";
-          } else if (docB > y + (3 * h / 4)) {
-            position = "bl";
-          }
-        } else if (docR > x + (3 * w / 4)) {
-          if (docT < y + (h / 4)) {
-            position = "tr";
-          } else if (docB > y + (3 * h / 4)) {
-            position = "br";
-          }
-        }
-      }
-
-      // currently at the top-left point
-      if (position == "tl") {
-        suffixList.push("l", "t");
-        pointList.push(x, y, x + wDia, y);
-      } else {
-        suffixList.push("tl");
-        pointList.push(x + wDia, y);
-        if (wOrth > 0) {
-          suffixList.push("t");
-          pointList.push(x + wDia + wOrth, y);
-        }
-      }
-      // currently at the top-right point
-      if (position == "tr") {
-        suffixList.push("t", "r");
-        pointList.push(x + w, y, x + w, y + hDia);
-      } else {
-        suffixList.push("tr");
-        pointList.push(x + w, y + hDia);
-        if (hOrth > 0) {
-          suffixList.push("r");
-          pointList.push(x + w, y + hDia + hOrth);
-        }
-      }
-      // currently at the bottom-right point
-      if (position == "br") {
-        suffixList.push("r", "b");
-        pointList.push(x + w, y + h, x + wDia, y + h);
-      } else {
-        suffixList.push("br");
-        pointList.push(x + wDia + wOrth, y + h);
-        if (wOrth > 0) {
-          suffixList.push("b");
-          pointList.push(x + wDia, y + h);
-        }
-      }
-      // currently at the bottom-left point
-      if (position == "bl") {
-        suffixList.push("b", "l");
-        pointList.push(x, y + h, x, y + hDia);
-      } else {
-        suffixList.push("bl");
-        pointList.push(x, y + hDia + hOrth);
-        if (hOrth > 0) {
-          suffixList.push("l");
-          pointList.push(x, y + hDia);
-        }
-      }
-
-      // create edges
-      pointList.unshift(pointList[pointList.length-1]);
-      pointList.unshift(pointList[pointList.length-2]);
-      const polygonList = [];
-      for (let i = 0; i < suffixList.length; i++) {
-        const offset = i*2;
-        this._setEdge(`${this.id}_${suffixList[i]}`, [pointList[offset + 0], pointList[offset + 1], pointList[offset + 2], pointList[offset + 3]]);
-        polygonList.push([pointList[offset + 0], pointList[offset + 1]], [pointList[offset + 2], pointList[offset + 3]]);
-      }
-
-      // remove unused edges
-      for (const direction of ["t","r","b","l","tl","tr","bl","br"]) {
-        if (suffixList.includes(direction)) continue;
-        canvas.edges.delete(`${this.id}_${direction}`);
-      }
-    }
-
-    _setEdge(id, c) {
-      canvas.edges.set(id, new foundry.canvas.edges.Edge({x: c[0], y: c[1]}, {x: c[2], y: c[3]}, {
-        id,
-        object: this,
-        type: "wall",
-        direction: CONST.WALL_DIRECTIONS.LEFT,
-        light: CONST.WALL_SENSE_TYPES.NONE,
-        sight: CONST.WALL_SENSE_TYPES.NONE,
-        sound: CONST.WALL_SENSE_TYPES.NONE,
-        move: CONST.WALL_MOVEMENT_TYPES.NORMAL,
-        threshold: {
-          light: 0,
-          sight: 0,
-          sound: 0,
-          attenuation: false,
-        }
-      }));
-    }
-
-    /** @inheritDoc */
-    _onCreate(data, options, userId) {
-      super._onCreate(data, options, userId);
-      this.initializeEdges();
-    }
 
     /** @inheritDoc */
     _onUpdate(changed, options, userId) {
-      if (options.teleport === true) {
-        const to = foundry.utils.filterObject(this._getAnimationData(), changed);
-        this._handleTeleportAnimation(to);
-      }
       super._onUpdate(changed, options, userId);
-      if ("x" in changed || "y" in changed || "width" in changed || "height" in changed || "hidden" in changed) {
-        this.initializeEdges({ changes: changed, deleted: !this.shouldHaveEdges });
-      }
+      
       if ("hidden" in changed && !changed.hidden) {
         this.#localOpacity = 1;
       }
+      
+      // Invalidate cached textures when spritesheet configuration changes
+      const needsTextureRefresh = changed.flags?.[MODULENAME]?.spritesheet !== undefined ||
+                                   changed.flags?.[MODULENAME]?.sheetstyle !== undefined ||
+                                   changed.flags?.[MODULENAME]?.animationframes !== undefined;
+      
+      if (needsTextureRefresh) {
+        this.#textures = null;
+        this.#textureSrc = null;
+        this.#textureKey = null;
+        this.renderable = true;
+        this.initializeSources();
+      }
     }
+
+    /* -------------------------------------------- */
+    /* Token Movement and Collision Methods         */
+    /* -------------------------------------------- */
+
+    /** @inheritDoc */
+    findMovementPath(waypoints, options) {
+      // Normal behavior if movement automation is disabled
+      if (!game.settings.get(MODULENAME, "tokenCollision")) {
+        return super.findMovementPath(waypoints, options);
+      }
+
+      // Get all grid spaces as waypoints so that running into a blocking token stops us immediately before it
+      waypoints = this.document.getCompleteMovementPath(waypoints);
+
+      // Drop all intermediate waypoints except those immediately before a blocking token
+      const grid = this.document.parent.grid;
+      waypoints = waypoints.filter((waypoint, i) => {
+        return !waypoint.intermediate || this.layer.isOccupiedGridSpaceBlocking(grid.getOffset(waypoints[i + 1]), this);
+      });
+      return super.findMovementPath(waypoints, options);
+    }
+
+    /* -------------------------------------------- */
+
+    /** @inheritDoc */
+    _getDragConstrainOptions() {
+      const unconstrainedMovement = game.user.isGM
+        && ui.controls.controls.tokens?.tools.unconstrainedMovement?.active;
+      return { ...super._getDragConstrainOptions(), ignoreTokens: unconstrainedMovement };
+    }
+
+    /* -------------------------------------------- */
+
+    /** @inheritDoc */
+    constrainMovementPath(waypoints, options) {
+      let { preview=false, ignoreTokens=false } = options; // Custom constrain option to ignore tokens
+
+      ignoreTokens ||= !game.settings.get(MODULENAME, "tokenCollision");
+
+      // Ignore tokens if path contains resize
+      ignoreTokens ||= waypoints.some(w => (w.width !== waypoints[0].width) || (w.height !== waypoints[0].height));
+
+      if (ignoreTokens) return super.constrainMovementPath(waypoints, options);
+
+      // Ignore preview if token vision is disabled or the current user is a GM
+      if (!canvas.visibility.tokenVision || game.user.isGM) preview = false;
+
+      let path = waypoints;
+      let constrained = false;
+
+      for (let k = 0; k < 10; k++) {
+
+        // Apply blocking constraints
+        const completePath = this.document.getCompleteMovementPath(path);
+        let blockedIndex;
+        for (let i = 1; i < completePath.length; i++) {
+          const waypoint = completePath[i];
+          const occupiedGridSpaces = this.document.getOccupiedGridSpaceOffsets(waypoint);
+          const elevationOffset = Math.floor((waypoint.elevation / canvas.grid.distance) + 1e-8);
+          if (occupiedGridSpaces.some(space =>
+            this.layer.isOccupiedGridSpaceBlocking({...space, k: elevationOffset}, this, {preview}))
+          ) {
+            blockedIndex = i;
+            break;
+          }
+        }
+        const blocked = blockedIndex >= 1;
+        if (blocked) {
+          path = completePath.slice(0, blockedIndex - 1).filter(waypoint => !waypoint.intermediate);
+          path.push(completePath.at(blockedIndex - 1));
+          constrained = true;
+        }
+
+        // Test wall/cost constraints in the first iteration always and in later
+        // iterations only if the path changed due to blocking
+        if ((k === 0) || blocked) {
+          const [constrainedPath, wasConstrained] = super.constrainMovementPath(path, options);
+          path = constrainedPath;
+          if (!wasConstrained) return [path, constrained]; // No change: path is valid
+          constrained = true;
+        }
+
+        // In a later iteration if there was no change due to blocking, we found a valid path
+        else if (!blocked) return [path, constrained];
+      }
+
+      // After 10 failed attempts to find a valid path, remove the last waypoints and constrain this path
+      [path] = this.constrainMovementPath(waypoints.slice(0, -1), options);
+      return [path, true];
+    }
+
+    /* -------------------------------------------- */
 
     /** @inheritDoc */
     _onDelete(options, userId) {
       super._onDelete(options, userId);
-      this.initializeEdges({deleted: true});
     }
 
   };
 
-  CONFIG.Token.objectClass = TilesetToken;
+  CONFIG.Token.objectClass = SpritesheetToken;
 
   Object.defineProperty(CONFIG.Token.documentClass.prototype, "movable", {
     get() {
@@ -968,9 +914,9 @@ export function register() {
   });
 
   Hooks.on("renderTokenConfig", OnRenderTokenConfig);
+  Hooks.on("renderPrototypeTokenConfig", OnRenderTokenConfig);
   Hooks.on("updateToken", OnUpdateToken);
   Hooks.on("preUpdateToken", OnPreUpdateToken);
-  Hooks.on("initializeEdges", OnInitializeEdges);
   if (early_isGM()) {
     Hooks.on("createCombatant", OnCreateCombatant);
   }
