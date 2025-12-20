@@ -92,4 +92,14 @@ export function register() {
 		hint: "Treat hidden tokens as walls for the purpose of movement. Requires 'Token Collisions' to be enabled."
 	});
 
+	game.settings.register(MODULENAME, "enableFollow", {
+		name: "Enable Token Following",
+		default: true,
+		type: Boolean,
+		scope: "world",
+		requiresReload: true,
+		config: true,
+		hint: "Allows players to mark tokens (defaulting to the 'L' key) as tokens to automatically follow when they move."
+	});
+
 };

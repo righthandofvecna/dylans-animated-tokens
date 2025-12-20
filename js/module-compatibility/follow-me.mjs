@@ -381,7 +381,7 @@ function OnFollowKey() {
       }
       const dist = (Math.max(leaderToken.w, leaderToken.h) + Math.max(followerToken.w, followerToken.h)) / 2;
       const hasCombat = getCombatsForScene(tokenScene(followerToken)?.uuid).length > 0;
-      canvas.interface.createScrollingText(followerToken, game.i18n.format(`POKEMON-ASSETS.FollowMe.OnFollow${hasCombat?"Combat":""}`, { name: leaderToken?.document?.name ?? "someone"}), {
+      canvas.interface.createScrollingText(followerToken, game.i18n.format(`DAT.FollowMe.OnFollow${hasCombat?"Combat":""}`, { name: leaderToken?.document?.name ?? "someone"}), {
         anchor: CONST.TEXT_ANCHOR_POINTS.TOP, 
         fill:   "#FFFFFF", 
         stroke: "#FFFFFF"
@@ -445,14 +445,14 @@ function OnUpdateToken(token, change, options, userId) {
 export function register() {
   if (game.modules.get("FollowMe")?.active) {
     if (early_isGM()) {
-      Hooks.on("ready", ()=>ui.notifications.warn(`"Pokemon Assets" provides a replacement for "Follow Me!", and may work better if that module is disabled.`));
+      Hooks.on("ready", ()=>ui.notifications.warn(`"Dylan's Animated Tokens" provides a replacement for "Follow Me!", and may work better if that module is disabled.`, { permanent: true }));
     }
     return;
   }
   if (!game.settings.get(MODULENAME, "enableFollow")) return;
 
   Hooks.on("updateToken", OnUpdateToken);
-  Hooks.on("pokemon-assets.manualMove", OnManualMove);
+  Hooks.on(`${MODULENAME}.manualMove`, OnManualMove);
 
   libWrapper.register(MODULENAME, "foundry.data.regionBehaviors.TeleportTokenRegionBehaviorType.events.tokenMoveIn", TeleportTokenRegionBehaviorType_tokenMoveIn, "MIXED");
   // libWrapper.register(MODULENAME, "foundry.data.regionBehaviors.TeleportTokenRegionBehaviorType.events.tokenPreMove", TeleportTokenRegionBehaviorType_tokenPreMove, "MIXED");
