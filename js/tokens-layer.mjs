@@ -15,7 +15,7 @@ export function register() {
      * @returns {boolean} Whether the moving token should be blocked
      */
     isOccupiedGridSpaceBlocking(gridSpace, token, { preview=false }={}) {
-      if (!game.settings.get(MODULENAME, "tokenCollision")) return false;
+      if (!game.settings.get(MODULENAME, "tokenCollision")) return super.isOccupiedGridSpaceBlocking?.(gridSpace, token, { preview }) ?? false;
       
       const found = this.#getRelevantOccupyingTokens(gridSpace, token, { preview });
       
