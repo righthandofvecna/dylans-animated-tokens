@@ -20,22 +20,22 @@
         "type": "module",
         "compatibility": {
           "minimum": "1.0.0.0",
-          "verified": "1.13.2.0"
+          "verified": "1.13.3.0"
         }
       },
       {
         "id": "sequencer",
         "type": "module",
         "compatibility": {
-          "minimum": "3.1.0",
-          "verified": "3.4.3"
+          "minimum": "3.6.0",
+          "verified": "3.6.9"
         }
       },
       {
         "id": "socketlib",
         "type": "module",
         "compatibility": {
-          "verified": "1.1.0"
+          "verified": "1.1.3"
         }
       }
     ]
