@@ -9,8 +9,8 @@ release: ver
 	echo "import * as main from './js/main.mjs';" > dylans-animated-tokens.js
 
 nextver:
-  # switch to main branch and pull latest changes
-	git checkout main
+  # switch to master branch and pull latest changes
+	git checkout master
 	git pull
   # increment the version number in module.json
 	jq '.version |= (split(".") | .[2] = ((.[2] | tonumber) + 1 | tostring) | join(".")) | .download = "https://github.com/righthandofvecna/dylans-animated-tokens/releases/download/v\(.version)/module.zip"'  module.json > module.tmp.json && mv module.tmp.json module.json
