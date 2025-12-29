@@ -145,7 +145,7 @@ async function OnRenderTokenConfig(config, html, context) {
       }
     };
 
-    const scaleFormEl = form.querySelector("input[name='scale']");
+    const scaleFormEl = form.querySelector("range-picker[name='scale'], input[name='scale']");
     if (updateScale && !!scaleFormEl) {
       scaleFormEl.value = data.scale ?? 1;
       const scaleFormLabel = $(scaleFormEl).next();
