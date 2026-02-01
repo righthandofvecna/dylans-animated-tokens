@@ -227,7 +227,7 @@ async function OnUpdateToken(token, changes, metadata, user) {
   const needsRedraw = changes?.texture?.src ||
                       changes?.flags?.[MODULENAME]?.sheetstyle ||
                       changes?.flags?.[MODULENAME]?.animationframes ||
-                      changes?.flags?.[MODULENAME]?.spritesheet;
+                      changes?.flags?.[MODULENAME]?.spritesheet !== undefined;
   
   if (!needsRedraw) return;
 
@@ -235,6 +235,7 @@ async function OnUpdateToken(token, changes, metadata, user) {
   if (!tokenObj) return;
 
   // Trigger a full redraw - cache invalidation is handled by _onUpdate
+  tokenObj.renderable = true;
   tokenObj.clear();
   await tokenObj.draw();
 }
