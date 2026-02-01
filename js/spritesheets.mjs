@@ -327,6 +327,126 @@ function sliceMemao(sheetKey, slicingInfo, frames) {
   }
 }
 
+function _uniq(lst) {
+  return lst.filter((i,idx)=>lst.indexOf(i) == idx);
+}
+
+
+function sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames) {
+  // populate the initial structure
+  slicingInfo.frames ??= {};
+  slicingInfo.animations ??= {};
+  for (const [a, _] of animList) {
+    slicingInfo.animations = {
+      ...slicingInfo.animations,
+      ...Object.fromEntries(Object.keys(SpritesheetGenerator.DIRECTIONS).map(k=>[`${a}${k}`,[]])),
+    }
+  }
+  // build up the frames and animations
+  const nFramesWide = animList.reduce((a, [_, f])=>Math.max(_uniq(f).length, a), 0);
+  const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / nFramesWide, slicingInfo.meta.size.h / (animList.length * dirOrder.length)];
+  let r = 0;
+  for (const [animName, frameOrders] of animList) {
+    for (const d of dirOrder) {
+      const animKey = `${animName ?? ""}${d}`;
+      const sheetFrameKeyPrefix = `${sheetKey}-${animKey}`;
+      const uniqFrames = _uniq(frameOrders);
+      for (const c of uniqFrames) {
+        const key = `${sheetFrameKeyPrefix}${c}`;
+        slicingInfo.frames[key] = {
+          frame: { x: frameWidth * c, y: frameHeight * r, w: frameWidth, h: frameHeight },
+          sourceSize: { w: frameWidth, h: frameHeight },
+          spriteSourceSize: { x: 0, y: 0, w: frameWidth, h: frameHeight },
+        }
+      }
+      slicingInfo.animations[animKey] = frameOrders.map(f=>`${sheetFrameKeyPrefix}${f}`);
+      r += 1;
+    }
+  }
+  // fill in missing animation directions
+  for (const [a, _] of animList) {
+    if (!dirOrder.includes("upleft")) {
+      slicingInfo.animations[`${a}upleft`] = slicingInfo.animations[`${a}left`]
+    }
+    if (!dirOrder.includes("upright")) {
+      slicingInfo.animations[`${a}upright`] = slicingInfo.animations[`${a}right`]
+    }
+    if (!dirOrder.includes("downleft")) {
+      slicingInfo.animations[`${a}downleft`] = slicingInfo.animations[`${a}down`]
+    }
+    if (!dirOrder.includes("downright")) {
+      slicingInfo.animations[`${a}downright`] = slicingInfo.animations[`${a}down`]
+    }
+  }
+}
+
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Jordan Bunke's "Top Down Sprite Maker" Gen3 style
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceTDSM_Gen3(sheetKey, slicingInfo, frames) {
+  const animList = [
+    ["", [1, 0, 1, 2]],
+    ["idle", [0]],
+    ["run", [1, 0, 1, 2]],
+    ["cycle", [1, 0, 1, 2]],
+    ["fish", [0, 1, 2, 3]],
+    ["surf", [0, 1]],
+    ["pokeball", [0, 1, 2, 3]],
+  ];
+  const dirOrder = ["down", "left", "right", "up"];
+  sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames)
+  for (const dir of Object.keys(SpritesheetGenerator.DIRECTIONS)) {
+    if (dir == "down") continue;
+    slicingInfo.animations[`pokeball${dir}`] = slicingInfo.animations.pokeballdown ?? [];
+  }
+}
+
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Jordan Bunke's "Top Down Sprite Maker" Gen4 style
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceTDSM_Gen4(sheetKey, slicingInfo, frames) {
+  const animList = [
+    ["", [1, 0, 1, 2]],
+    ["idle", [0]],
+    ["run", [1, 0, 1, 2]],
+    ["surf", [0]],
+    ["swim", [1, 0, 1, 2]],
+  ];
+  const dirOrder = ["down", "left", "right", "up"];
+  sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames)
+}
+
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Jordan Bunke's "Top Down Sprite Maker" PixelCitizen style
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceTDSM_PixelCitizen(sheetKey, slicingInfo, frames) {
+  const animList = [
+    ["idle", [0, 1, 2, 3]],
+    ["", [0, 1, 2, 3, 4, 5]],
+    ["run", [0, 1, 2, 3, 4, 5]],
+  ];
+  const dirOrder = ["down", "left", "right", "up"];
+  sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames)
+}
+
 
 export class SpritesheetGenerator {
 
@@ -372,6 +492,30 @@ export class SpritesheetGenerator {
       frames: 6, // force this to be 6 for memao
       includesIdle: true, // this style includes an idle animation
       verticalFrames: 12,
+    },
+    tdsm3: {
+      label: "TDSM Gen3 Style",
+      hint: "Jordan Bunke's Top Down Sprite Maker Gen3 style",
+      slicer: sliceTDSM_Gen3,
+      frames: 4, // force this to be 4 for tdsm3
+      includesIdle: true, // this style includes an idle animation
+      verticalFrames: 7 * 4, // this style has 7 animations of 4 directions each
+    },
+    tdsm4: {
+      label: "TDSM Gen4 Style",
+      hint: "Jordan Bunke's Top Down Sprite Maker Gen4 style",
+      slicer: sliceTDSM_Gen4,
+      frames: 3, // force this to be 3 for tdsm4
+      includesIdle: true, // this style includes an idle animation
+      verticalFrames: 5 * 4, // this style has 7 animations of 4 directions each
+    },
+    tdsmpc: {
+      label: "TDSM PixelCitizen Style",
+      hint: "Jordan Bunke's Top Down Sprite Maker PixelCitizen style",
+      slicer: sliceTDSM_PixelCitizen,
+      frames: 6, // force this to be 6 for tdsmpc
+      includesIdle: true, // this style includes an idle animation
+      verticalFrames: 3 * 4, // this style has 3 animations of 4 directions each
     },
   };
 
