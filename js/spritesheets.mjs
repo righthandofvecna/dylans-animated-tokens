@@ -346,6 +346,7 @@ export class SpritesheetGenerator {
       label: "DAT.SheetStyle.Eight.Label",
       hint: "DAT.SheetStyle.Eight.Hint",
       slicer: sliceEight,
+      verticalFrames: 8,
     },
     diagonal: {
       label: "DAT.SheetStyle.Diagonal.Label",
@@ -370,6 +371,7 @@ export class SpritesheetGenerator {
       slicer: sliceMemao,
       frames: 6, // force this to be 6 for memao
       includesIdle: true, // this style includes an idle animation
+      verticalFrames: 12,
     },
   };
 
