@@ -145,7 +145,7 @@ async function OnRenderTokenConfig(config, html, context) {
       }
     };
 
-    const scaleFormEl = form.querySelector("input[name='scale']");
+    const scaleFormEl = form.querySelector("range-picker[name='scale'], input[name='scale']");
     if (updateScale && !!scaleFormEl) {
       scaleFormEl.value = data.scale ?? 1;
       const scaleFormLabel = $(scaleFormEl).next();
@@ -157,15 +157,9 @@ async function OnRenderTokenConfig(config, html, context) {
     const texture = await foundry.canvas.loadTexture(src, {fallback: CONST.DEFAULT_TOKEN});
     const { width, height } = texture ?? {};
     if (!width || !height) return;
-    const directions = (()=>{
-      switch (data.sheetstyle) {
-        case "pmd":
-        case "eight": return 8;
-        default: return 4;
-      }
-    })();
+    const verticalFrames = SHEET_STYLE?.verticalFrames ?? 4;
 
-    const ratio = (height / width) * (data.animationframes / directions);
+    const ratio = (height / width) * (data.animationframes / verticalFrames);
     const scale = form.querySelector("input[name='scale']")?.value ?? 1;
     const anchorY = (()=>{
       switch (data.sheetstyle) {
@@ -227,7 +221,7 @@ async function OnUpdateToken(token, changes, metadata, user) {
   const needsRedraw = changes?.texture?.src ||
                       changes?.flags?.[MODULENAME]?.sheetstyle ||
                       changes?.flags?.[MODULENAME]?.animationframes ||
-                      changes?.flags?.[MODULENAME]?.spritesheet;
+                      changes?.flags?.[MODULENAME]?.spritesheet !== undefined;
   
   if (!needsRedraw) return;
 
@@ -235,6 +229,7 @@ async function OnUpdateToken(token, changes, metadata, user) {
   if (!tokenObj) return;
 
   // Trigger a full redraw - cache invalidation is handled by _onUpdate
+  tokenObj.renderable = true;
   tokenObj.clear();
   await tokenObj.draw();
 }
