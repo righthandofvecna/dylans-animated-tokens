@@ -105,7 +105,7 @@ async function OnRenderTokenConfig(config, html, context) {
     data.showidle = game.settings.get(MODULENAME, "playIdleAnimations") && !data.separateidle;
     data.hide = !data.spritesheet || isPredefined;
     data.hideaux = !data.spritesheet;
-    const rendered = $(await renderTemplate(`modules/${MODULENAME}/templates/token-settings.hbs`, data)).get(0);
+    const rendered = $(await foundry.applications.handlebars.renderTemplate(`modules/${MODULENAME}/templates/token-settings.hbs`, data)).get(0);
     if (!form.querySelector(".spritesheet-config")) {
       $(form).find("[name='texture.src']").closest(".form-group").after(`<div class="spritesheet-config"></div>`)
     };
