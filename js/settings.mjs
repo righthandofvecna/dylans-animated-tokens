@@ -102,4 +102,13 @@ export function register() {
 		hint: "Allows players to mark tokens (defaulting to the 'L' key) as tokens to automatically follow when they move."
 	});
 
+	game.settings.register(MODULENAME, "allowTokenArtPastBounds", {
+		name: "Allow Token Art Past Bounds",
+		default: true,
+		type: Boolean,
+		scope: "world",
+		requiresReload: false,
+		config: true,
+		hint: "Whether the positioning settings in the Token Config menu automatically extends the art above the grid space the token is standing on. This mainly has an effect for non-square tokens and scaled tokens."
+	});
 };
