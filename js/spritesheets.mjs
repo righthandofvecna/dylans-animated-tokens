@@ -491,7 +491,7 @@ export class SpritesheetGenerator {
       slicer: sliceMemao,
       frames: 6, // force this to be 6 for memao
       includesIdle: true, // this style includes an idle animation
-      verticalFrames: 12,
+      defaultRatio: 1,
     },
     tdsm3: {
       label: "TDSM Gen3 Style",
@@ -499,7 +499,7 @@ export class SpritesheetGenerator {
       slicer: sliceTDSM_Gen3,
       frames: 4, // force this to be 4 for tdsm3
       includesIdle: true, // this style includes an idle animation
-      verticalFrames: 7 * 4, // this style has 7 animations of 4 directions each
+      defaultRatio: 4 / 28,
     },
     tdsm4: {
       label: "TDSM Gen4 Style",
@@ -507,7 +507,7 @@ export class SpritesheetGenerator {
       slicer: sliceTDSM_Gen4,
       frames: 3, // force this to be 3 for tdsm4
       includesIdle: true, // this style includes an idle animation
-      verticalFrames: 5 * 4, // this style has 7 animations of 4 directions each
+      defaultRatio: 5 / 20,
     },
     tdsmpc: {
       label: "TDSM PixelCitizen Style",
@@ -515,7 +515,7 @@ export class SpritesheetGenerator {
       slicer: sliceTDSM_PixelCitizen,
       frames: 6, // force this to be 6 for tdsmpc
       includesIdle: true, // this style includes an idle animation
-      verticalFrames: 3 * 4, // this style has 3 animations of 4 directions each
+      defaultRatio: 6 / 12,
     },
   };
 
