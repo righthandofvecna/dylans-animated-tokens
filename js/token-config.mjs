@@ -153,12 +153,12 @@ async function OnRenderTokenConfig(config, html, context) {
       switch (game.system.id) {
         case "ptu":
           if (!form.querySelector("input[name='flags.ptu.autoscale']")) {
-            $(form).append(`<input name="flags.ptu.autoscale" type="hidden" value="false" />`);
+            $(form).append(`<input name="flags.ptu.autoscale" type="checkbox" style="display:none" />`);
           }
           break;
         case "ptr2e":
           if (!form.querySelector("input[name='flags.ptr2e.autoscale']")) {
-            $(form).append(`<input name="flags.ptr2e.autoscale" type="hidden" value="false" />`);
+            $(form).append(`<input name="flags.ptr2e.autoscale" type="checkbox" style="display:none" />`);
           }
           break;
       }
