@@ -6,7 +6,7 @@ Installable with this link (through the normal Foundry module interface): `https
 
 This module adds support for Directional Spritesheets for Foundry VTT v13.
 
-![Animated token example](nondistribute/demo.webm)
+![Animated token example](nondistribute/demo.mp4)
 
 
 ## Use
