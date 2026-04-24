@@ -9,6 +9,7 @@ import * as spritesheets from "./spritesheets.mjs";
 import * as pixelate from "./pixelate.mjs";
 import * as canvas from "./canvas.mjs";
 import * as moduleCompatibility from "./module-compatibility/index.mjs";
+import * as api from "./api.mjs";
 
 Hooks.on("init", ()=>{
   for (const [name, m] of [
@@ -22,6 +23,7 @@ Hooks.on("init", ()=>{
     ["pixelate", pixelate],
     ["canvas", canvas],
     ["moduleCompatibility", moduleCompatibility],
+    ["api", api],
   ]) {
     try {
       m.register();
@@ -29,4 +31,5 @@ Hooks.on("init", ()=>{
       console.error(`${name}.register():`, e);
     }
   }
+  Hooks.callAll("dylans.animatedTokens.init");
 })

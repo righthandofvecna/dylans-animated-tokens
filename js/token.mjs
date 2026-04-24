@@ -103,6 +103,7 @@ function OnCreateCombatant(combatant) {
 
 
 export function register() {
+  const MODULE = game.modules.get(MODULENAME);
   Hooks.on("canvasConfig", ()=>{
     class SpritesheetToken extends NonPrivateTokenMixin(CONFIG.Token.objectClass) {
       #index;
@@ -243,7 +244,7 @@ export function register() {
           } catch {
             texture = null;
           }
-          
+
           if (!texture) return;
 
           this.#textureSrc = this.document.texture.src;
@@ -542,12 +543,16 @@ export function register() {
        * 
        */
       async _drawIndicators() {
+        if (!this.indicators) return;
         this.indicators.renderable = false;
 
-        // clear caught indicator
-        this.indicators.removeChildren().forEach(c => c.destroy());
-
         // TODO: add a way for other modules to add indicators here
+        const allIndicators = MODULE.api.getIndicators(this.document) ?? [];
+
+        // clear existing indicators
+        this.indicators.removeChildren().forEach(c => c.destroy());
+        // re-add the current ones
+        allIndicators.forEach(icon => this.indicators.addChild(icon));
 
         this.indicators.sortChildren();
         this.indicators.renderable = true;
@@ -727,6 +732,7 @@ export function register() {
         return (this._movementLocks?.size ?? 0) === 0;
       }
     });
+    Hooks.callAll("dylans.animatedTokens.spritesheetTokenReady", CONFIG.Token.objectClass);
   });
 
   Hooks.on("updateToken", OnUpdateToken);
