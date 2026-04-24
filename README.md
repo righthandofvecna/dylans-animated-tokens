@@ -6,6 +6,8 @@ Installable with this link (through the normal Foundry module interface): `https
 
 This module adds support for Directional Spritesheets for Foundry VTT v13.
 
+![An example of the various directional sprites](nondistribute/example.png)
+
 
 ## Use
 To set up a token to use these animated spritesheets, open the Prototype Token settings and navigate to the **"Appearance"** tab. Set your spritesheet as the token image, check the **"Sheet"** checkbox next to the image path, and then choose the Sheet Style as appropriate.
