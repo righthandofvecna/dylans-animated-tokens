@@ -181,6 +181,7 @@ async function OnRenderTokenConfig(config, html, context) {
     const ratio = (height / width) * defaultRatio;
     const scale = form.querySelector("range-picker[name='scale'], input[name='scale']")?.value ?? 1;
     const anchorY = (()=>{
+      if (predefinedSheetSettings?.anchor) return predefinedSheetSettings.anchor;
       switch (data.sheetstyle) {
         case "pmd":
         case "eight": return 0.5;
