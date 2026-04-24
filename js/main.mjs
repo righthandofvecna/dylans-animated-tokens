@@ -31,5 +31,4 @@ Hooks.on("init", ()=>{
       console.error(`${name}.register():`, e);
     }
   }
-  Hooks.callAll("dylans.animatedTokens.init");
 })
