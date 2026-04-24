@@ -237,8 +237,14 @@ export function register() {
         const genSpritesheetKey = SpritesheetGenerator.generateKey(this.document.texture.src, this.sheetStyle, this.animationFrames);
         if (this.#textures == null || this.#textureSrc !== this.document.texture.src || this.#textureKey !== genSpritesheetKey) {
           let texture;
-          if ( this._original ) texture = this._original.texture?.clone();
-          else texture = await foundry.canvas.loadTexture(this.document.texture.src, {fallback: CONST.DEFAULT_TOKEN});
+          try {
+            if ( this._original ) texture = this._original.texture?.clone();
+            else texture = await foundry.canvas.loadTexture(this.document.texture.src, {fallback: CONST.DEFAULT_TOKEN});
+          } catch {
+            texture = null;
+          }
+          
+          if (!texture) return;
 
           this.#textureSrc = this.document.texture.src;
           this.#textures = await game.modules.get(MODULENAME).api.spritesheetGenerator.getTexturesForToken(this, texture);
