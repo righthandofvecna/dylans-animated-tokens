@@ -448,6 +448,12 @@ export function register() {
     }
     return;
   }
+
+  const MODULE = game.modules.get(MODULENAME);
+  MODULE.api ??= {};
+  MODULE.api.getAllFollowing ??= getAllFollowing;
+
+
   if (!game.settings.get(MODULENAME, "enableFollow")) return;
 
   Hooks.on("updateToken", OnUpdateToken);
