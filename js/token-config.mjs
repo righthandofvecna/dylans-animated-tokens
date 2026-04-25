@@ -1,4 +1,5 @@
 import { MODULENAME } from "./utils.mjs";
+import { PredefinedSheets } from "./predefined-sheets.mjs";
 import { SpritesheetGenerator } from "./spritesheets.mjs";
 
 /**
@@ -18,14 +19,8 @@ async function OnRenderTokenConfig(config, html, context) {
    */
   const refreshConfig = async function ({ updateScale } = { updateScale: true }) {
     const rawSrc = form.querySelector("[name='texture.src'] input[type='text']")?.value ?? form.querySelector("[name='texture.src'][type='text']")?.value;
-    const src = (()=>{
-      if (rawSrc.startsWith(`modules/${MODULENAME}/img`)) return rawSrc;
-      if (rawSrc.includes(`modules/${MODULENAME}/img`)) {
-        return rawSrc.substring(rawSrc.indexOf(`modules/${MODULENAME}/img`));
-      }
-      return rawSrc;
-    })();
-    const predefinedSheetSettings = undefined;
+    const src = PredefinedSheets.cleanSrc(rawSrc);
+    const predefinedSheetSettings = PredefinedSheets.getSheetSettings(src);
     const isPredefined = predefinedSheetSettings !== undefined;
 
     function getHiddenBoolOrFlag(flagName, defaultValue) {
@@ -130,14 +125,15 @@ async function OnRenderTokenConfig(config, html, context) {
     form.querySelector(".spritesheet-config-aux")?.remove();
     form.querySelector(".spritesheet-config").replaceWith(rendered);
 
+    // If token art past bounds is disallowed, don't do this
+    if (!allowTokenArtPastBounds) return;
+
     // check that the anchoring fields exist
     for (const tf of ["fit", "anchorX", "anchorY"]) {
       if (!form.querySelector(`[name='texture.${tf}']`)) {
         $(form).append(`<input name="texture.${tf}" value="${token?.texture?.[tf]}" hidden />`);
       }
     }
-
-    if (!allowTokenArtPastBounds) return;
 
     // update the anchors
     if (!data.spritesheet) {

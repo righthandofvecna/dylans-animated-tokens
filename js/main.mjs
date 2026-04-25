@@ -6,6 +6,7 @@ import * as token from "./token.mjs";
 import * as tokenConfig from "./token-config.mjs";
 import * as tokenMovement from "./token-movement.mjs";
 import * as spritesheets from "./spritesheets.mjs";
+import * as predefinedSheets from "./predefined-sheets.mjs";
 import * as pixelate from "./pixelate.mjs";
 import * as canvas from "./canvas.mjs";
 import * as moduleCompatibility from "./module-compatibility/index.mjs";
@@ -20,6 +21,7 @@ Hooks.on("init", ()=>{
     ["tokenConfig", tokenConfig],
     ["tokenMovement", tokenMovement],
     ["spritesheets", spritesheets],
+    ["predefinedSheets", predefinedSheets],
     ["pixelate", pixelate],
     ["canvas", canvas],
     ["moduleCompatibility", moduleCompatibility],
