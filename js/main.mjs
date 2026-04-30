@@ -1,4 +1,4 @@
-
+import { MODULENAME } from "./utils.mjs";
 import * as migration from "./migration.mjs";
 import * as settings from "./settings.mjs";
 import * as tokensLayer from "./tokens-layer.mjs";
@@ -33,4 +33,8 @@ Hooks.on("init", ()=>{
       console.error(`${name}.register():`, e);
     }
   }
+
+  const MODULE = game.modules.get(MODULENAME);
+  Hooks.callAll(`${MODULENAME}.init`);
+  MODULE.initialized = true;
 })

@@ -17,7 +17,4 @@ export function register() {
   MODULE.api.RefreshTokenIndicators = RefreshTokenIndicators;
 
   socket.registerSocket("refreshTokenIndicators", async ()=>canvas?.tokens?.objects?.children?.forEach(t=>t._drawIndicators()));
-  
-  Hooks.callAll("dylans.animatedTokens.init");
-  MODULE.initialized = true;
 }
