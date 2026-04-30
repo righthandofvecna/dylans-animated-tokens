@@ -590,7 +590,7 @@ export class SpritesheetGenerator {
 
   async getTexturesForToken(tilesetToken, texture) {
     const spritesheet = await this.#getSpritesheet(
-      tilesetToken.document.texture.src,
+      tilesetToken.document.getFlag(MODULENAME, "sheetsrc") ?? tilesetToken.document.texture.src,
       texture,
       tilesetToken.sheetStyle,
       tilesetToken.animationFrames

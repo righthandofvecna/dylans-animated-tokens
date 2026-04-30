@@ -18,7 +18,8 @@ async function OnUpdateToken(token, changes, metadata, user) {
   const needsRedraw = changes?.texture?.src ||
                       changes?.flags?.[MODULENAME]?.sheetstyle ||
                       changes?.flags?.[MODULENAME]?.animationframes ||
-                      changes?.flags?.[MODULENAME]?.spritesheet !== undefined;
+                      changes?.flags?.[MODULENAME]?.spritesheet !== undefined ||
+                      changes?.flags?.[MODULENAME]?.sheetsrc !== undefined;
   
   if (!needsRedraw) return;
 
@@ -160,6 +161,10 @@ export function register() {
         return this.document.getFlag(MODULENAME, "animationframes") ?? 4;
       }
 
+      get sheetSrc() {
+        return this.document.getFlag(MODULENAME, "sheetsrc") ?? this.document.texture.src;
+      }
+
       get separateIdle() {
         return this.document.getFlag(MODULENAME, "separateidle") ?? false;
       }
@@ -251,19 +256,19 @@ export function register() {
       }
 
       async playFromSpritesheet() {
-        const genSpritesheetKey = SpritesheetGenerator.generateKey(this.document.texture.src, this.sheetStyle, this.animationFrames);
-        if (this.#textures == null || this.#textureSrc !== this.document.texture.src || this.#textureKey !== genSpritesheetKey) {
+        const genSpritesheetKey = SpritesheetGenerator.generateKey(this.sheetSrc, this.sheetStyle, this.animationFrames);
+        if (this.#textures == null || this.#textureSrc !== this.sheetSrc || this.#textureKey !== genSpritesheetKey) {
           let texture;
           try {
             if ( this._original ) texture = this._original.texture?.clone();
-            else texture = await foundry.canvas.loadTexture(this.document.texture.src, {fallback: CONST.DEFAULT_TOKEN});
+            else texture = await foundry.canvas.loadTexture(this.sheetSrc, {fallback: CONST.DEFAULT_TOKEN});
           } catch {
             texture = null;
           }
 
           if (!texture) return;
 
-          this.#textureSrc = this.document.texture.src;
+          this.#textureSrc = this.sheetSrc;
           this.#textures = await game.modules.get(MODULENAME).api.spritesheetGenerator.getTexturesForToken(this, texture);
           this.#textureKey = genSpritesheetKey;
         }

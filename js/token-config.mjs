@@ -18,10 +18,34 @@ async function OnRenderTokenConfig(config, html, context) {
    * Recalculate all the computed fields, create them if they don't exist, and update them.
    */
   const refreshConfig = async function ({ updateScale } = { updateScale: true }) {
-    const rawSrc = form.querySelector("[name='texture.src'] input[type='text']")?.value ?? form.querySelector("[name='texture.src'][type='text']")?.value;
+    // Swap the file-picker's name attribute so Foundry saves the spritesheet path to
+    // flags.sheetsrc rather than texture.src.
+    const checkboxEl = form.querySelector(`input[name='flags.${MODULENAME}.spritesheet']`);
+    const prelimSheetMode = checkboxEl?.checked ?? token.getFlag(MODULENAME, "spritesheet") ?? false;
+    const srcFieldEl = form.querySelector("[name='texture.src']") ?? form.querySelector(`[name='flags.${MODULENAME}.sheetsrc']`);
+    if (srcFieldEl) {
+      const srcTextInput = srcFieldEl.querySelector("input[type='text']") ?? (srcFieldEl.type === "text" ? srcFieldEl : null);
+      if (prelimSheetMode && srcFieldEl.getAttribute("name") === "texture.src") {
+        srcFieldEl.setAttribute("name", `flags.${MODULENAME}.sheetsrc`);
+        if (srcTextInput) srcTextInput.value = token.getFlag(MODULENAME, "sheetsrc") ?? token.texture?.src ?? "";
+      } else if (!prelimSheetMode && srcFieldEl.getAttribute("name") === `flags.${MODULENAME}.sheetsrc`) {
+        srcFieldEl.setAttribute("name", "texture.src");
+        if (srcTextInput) srcTextInput.value = token.texture?.src ?? "";
+      }
+    }
+    const rawSrc = form.querySelector(`[name='flags.${MODULENAME}.sheetsrc'] input[type='text']`)?.value
+      ?? form.querySelector(`[name='flags.${MODULENAME}.sheetsrc'][type='text']`)?.value
+      ?? form.querySelector("[name='texture.src'] input[type='text']")?.value
+      ?? form.querySelector("[name='texture.src'][type='text']")?.value;
     const src = PredefinedSheets.cleanSrc(rawSrc);
     const predefinedSheetSettings = PredefinedSheets.getSheetSettings(src);
     const isPredefined = predefinedSheetSettings !== undefined;
+
+    // Case (c): predefined sheet selected without the checkbox — rename field to sheetsrc.
+    if (isPredefined) {
+      const el = form.querySelector("[name='texture.src']");
+      if (el) el.setAttribute("name", `flags.${MODULENAME}.sheetsrc`);
+    }
 
     function getHiddenBoolOrFlag(flagName, defaultValue) {
       const hiddenField = form.querySelector(`input[name='flags.${MODULENAME}.${flagName}']`);
@@ -63,7 +87,8 @@ async function OnRenderTokenConfig(config, html, context) {
 
     // checkbox for whether or not this should be a spritesheet!
     if (!form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`)) {
-      $(form).find("[name='texture.src']").before(`<label>Sheet</label><input type="checkbox" name="flags.${MODULENAME}.spritesheet" ${data.spritesheet ? "checked" : ""}>`);
+      const srcFieldForCheckbox = $(form).find(`[name='flags.${MODULENAME}.sheetsrc'], [name='texture.src']`).first();
+      srcFieldForCheckbox.before(`<label>Sheet</label><input type="checkbox" name="flags.${MODULENAME}.spritesheet" ${data.spritesheet ? "checked" : ""}>`);
     };
     form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`).checked = data.spritesheet;
     form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`).readonly = isPredefined;
@@ -120,7 +145,7 @@ async function OnRenderTokenConfig(config, html, context) {
     data.hideaux = !data.spritesheet;
     const rendered = $(await foundry.applications.handlebars.renderTemplate(`modules/${MODULENAME}/templates/token-settings.hbs`, data)).get(0);
     if (!form.querySelector(".spritesheet-config")) {
-      $(form).find("[name='texture.src']").closest(".form-group").after(`<div class="spritesheet-config"></div>`)
+      $(form).find(`[name='flags.${MODULENAME}.sheetsrc'], [name='texture.src']`).first().closest(".form-group").after(`<div class="spritesheet-config"></div>`)
     };
     form.querySelector(".spritesheet-config-aux")?.remove();
     form.querySelector(".spritesheet-config").replaceWith(rendered);
@@ -200,9 +225,9 @@ async function OnRenderTokenConfig(config, html, context) {
   // listeners
   //
 
-  $(form).on("change", "[name='texture.src'] input[type='text'], input[name='texture.src'][type='text']", refreshConfig);
+  $(form).on("change", `[name='texture.src'] input[type='text'], input[name='texture.src'][type='text'], [name='flags.${MODULENAME}.sheetsrc'] input[type='text'], input[name='flags.${MODULENAME}.sheetsrc'][type='text']`, refreshConfig);
   // dumb workaround to listen on the filepicker button too
-  $(form).on("click", "[name='texture.src'] button", function () {
+  $(form).on("click", `[name='texture.src'] button, [name='flags.${MODULENAME}.sheetsrc'] button`, function () {
     const filePicker = $(this).closest("file-picker")?.get(0)?.picker;
     if (!filePicker) return;
     filePicker.callback = ((callback)=>{
