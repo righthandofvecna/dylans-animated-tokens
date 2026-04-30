@@ -14,85 +14,65 @@ async function OnRenderTokenConfig(config, html, context) {
 
   const allowTokenArtPastBounds = game.settings.get(MODULENAME, "allowTokenArtPastBounds");
 
+  // Two-field approach: keep two file-pickers as stable DOM elements.
+  // We use data attributes to find them regardless of their current name/disabled state,
+  // since an inactive picker has its name attribute removed so Foundry doesn't serialize it.
+  let srcPickerEl = form.querySelector("[name='texture.src']") ?? form.querySelector("[data-dat-picker='texture-src']");
+  if (srcPickerEl && !srcPickerEl.dataset.datPicker) srcPickerEl.dataset.datPicker = "texture-src";
+
+  let sheetsrcPickerEl = form.querySelector(`[name='flags.${MODULENAME}.sheetsrc']`) ?? form.querySelector("[data-dat-picker='sheetsrc']");
+
+  // Create the sheetsrc picker on first render by cloning the texture.src picker
+  if (!sheetsrcPickerEl && srcPickerEl) {
+    sheetsrcPickerEl = srcPickerEl.cloneNode(true);
+    sheetsrcPickerEl.removeAttribute("id"); // don't duplicate ID
+    sheetsrcPickerEl.name = `flags.${MODULENAME}.sheetsrc`;
+    sheetsrcPickerEl.dataset.datPicker = "sheetsrc";
+    srcPickerEl.insertAdjacentElement("afterend", sheetsrcPickerEl);
+    srcPickerEl.parentElement.classList.add("token-config-src-picker");
+    sheetsrcPickerEl.value = token.getFlag(MODULENAME, "sheetsrc") ?? token.texture?.src ?? "";
+  }
+
+  // checkbox for whether or not this should be a spritesheet!
+  let checkboxEl = form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`);
+  if (!checkboxEl) {
+    const srcFieldForCheckbox = $(form).find(`.token-config-src-picker file-picker`).first();
+    srcFieldForCheckbox.before(`<label>Sheet</label><input type="checkbox" name="flags.${MODULENAME}.spritesheet" ${token.getFlag(MODULENAME, "spritesheet") ? "checked" : ""}>`);
+    checkboxEl = form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`);
+  };
+
   /**
    * Recalculate all the computed fields, create them if they don't exist, and update them.
    */
   const refreshConfig = async function ({ updateScale } = { updateScale: true }) {
-    const checkboxEl = form.querySelector(`input[name='flags.${MODULENAME}.spritesheet']`);
-    const checkboxExplicitlyOff = checkboxEl !== null && !checkboxEl.checked;
-
-    // Two-field approach: keep two file-pickers as stable DOM elements.
-    // We use data attributes to find them regardless of their current name/disabled state,
-    // since an inactive picker has its name attribute removed so Foundry doesn't serialize it.
-    let srcPickerEl = form.querySelector("[name='texture.src']") ?? form.querySelector("[data-dat-picker='texture-src']");
-    if (srcPickerEl && !srcPickerEl.dataset.datPicker) srcPickerEl.dataset.datPicker = "texture-src";
-
-    let sheetsrcPickerEl = form.querySelector(`[name='flags.${MODULENAME}.sheetsrc']`) ?? form.querySelector("[data-dat-picker='sheetsrc']");
-
-    // Read rawSrc from whichever picker is currently visible/active
-    const activePickerEl = (sheetsrcPickerEl && sheetsrcPickerEl.style.display !== "none") ? sheetsrcPickerEl : srcPickerEl;
     const src = PredefinedSheets.cleanSrc(
-      activePickerEl?.querySelector("input[type='text']")?.value ?? activePickerEl?.value ?? ""
+      sheetsrcPickerEl?.querySelector("input[type='text']")?.value ?? sheetsrcPickerEl?.value ?? ""
     );
     const predefinedSheetSettings = PredefinedSheets.getSheetSettings(src);
     const isPredefined = predefinedSheetSettings !== undefined;
 
-    // Sheet mode: explicit checkbox > predefined auto-detect (unless explicitly off) > stored flag
-    const prelimSheetMode = checkboxEl?.checked
-      ?? ((isPredefined && !checkboxExplicitlyOff) || undefined)
-      ?? token.getFlag(MODULENAME, "spritesheet")
-      ?? false;
-
-    // Create the sheetsrc picker on first render by cloning the texture.src picker
-    if (!sheetsrcPickerEl && srcPickerEl) {
-      sheetsrcPickerEl = srcPickerEl.cloneNode(true);
-      sheetsrcPickerEl.removeAttribute("id"); // prevent duplicate ID breaking form serialization
-      sheetsrcPickerEl.dataset.datPicker = "sheetsrc";
-      delete sheetsrcPickerEl.dataset.datInitialized;
-      srcPickerEl.insertAdjacentElement("afterend", sheetsrcPickerEl);
-      srcPickerEl.parentElement.classList.add("token-config-src-picker");
-    }
-
-    // Toggle which picker is active. Inactive picker has name removed + disabled so Foundry skips it.
-    if (prelimSheetMode) {
-      if (sheetsrcPickerEl) {
-        sheetsrcPickerEl.setAttribute("name", `flags.${MODULENAME}.sheetsrc`);
-        sheetsrcPickerEl.disabled = false;
-        sheetsrcPickerEl.style.display = "";
-        const inp = sheetsrcPickerEl.querySelector("input[type='text']");
-        if (inp) inp.disabled = false;
-        // Initialize value on first activation: stored flag, or current src (covers predefined/migration)
-        if (!sheetsrcPickerEl.dataset.datInitialized) {
-          const initVal = token.getFlag(MODULENAME, "sheetsrc") ?? src ?? "";
-          if (inp) inp.value = initVal;
-          // Use the element's value setter to sync ElementInternals (AbstractFormInputElement API)
-          sheetsrcPickerEl.value = initVal;
-          sheetsrcPickerEl.dataset.datInitialized = "true";
-        }
-      }
-      if (srcPickerEl) {
-        srcPickerEl.removeAttribute("name");
-        srcPickerEl.disabled = true;
-        srcPickerEl.style.display = "none";
-        const inp = srcPickerEl.querySelector("input[type='text']");
-        if (inp) inp.disabled = true;
-      }
+    if (checkboxEl.checked) {
+      // disable srcPickerEl and enable sheetsrcPickerEl
+      srcPickerEl.disabled = true;
+      srcPickerEl.style.display = "none";
+      const srcInput = srcPickerEl.querySelector("input[type='text']");
+      if (srcInput) srcInput.disabled = true;
+      
+      sheetsrcPickerEl.disabled = false;
+      sheetsrcPickerEl.style.display = "";
+      const sheetsrcInput = sheetsrcPickerEl.querySelector("input[type='text']");
+      if (sheetsrcInput) sheetsrcInput.disabled = false;
     } else {
-      if (srcPickerEl) {
-        srcPickerEl.setAttribute("name", "texture.src");
-        srcPickerEl.disabled = false;
-        srcPickerEl.style.display = "";
-        const inp = srcPickerEl.querySelector("input[type='text']");
-        if (inp) inp.disabled = false;
-      }
-      if (sheetsrcPickerEl) {
-        sheetsrcPickerEl.removeAttribute("name");
-        sheetsrcPickerEl.disabled = true;
-        sheetsrcPickerEl.style.display = "none";
-        const inp = sheetsrcPickerEl.querySelector("input[type='text']");
-        if (inp) inp.disabled = true;
-        sheetsrcPickerEl.dataset.datInitialized = ""; // reset for next activation
-      }
+      // enable srcPickerEl and disable sheetsrcPickerEl
+      srcPickerEl.disabled = false;
+      srcPickerEl.style.display = "";
+      const srcInput = srcPickerEl.querySelector("input[type='text']");
+      if (srcInput) srcInput.disabled = false;
+
+      sheetsrcPickerEl.disabled = true;
+      sheetsrcPickerEl.style.display = "none";
+      const sheetsrcInput = sheetsrcPickerEl.querySelector("input[type='text']");
+      if (sheetsrcInput) sheetsrcInput.disabled = true;
     }
 
     function getHiddenBoolOrFlag(flagName, defaultValue) {
@@ -104,7 +84,7 @@ async function OnRenderTokenConfig(config, html, context) {
     }
 
     const data = {
-      spritesheet: prelimSheetMode,
+      spritesheet: checkboxEl.checked,
       sheetstyle: form.querySelector(`select[name='flags.${MODULENAME}.sheetstyle']`)?.value ?? token.getFlag(MODULENAME, "sheetstyle") ?? "dlru",
       animationframes: (parseInt(form.querySelector(`input[name='flags.${MODULENAME}.animationframes']`)?.value) || token.getFlag(MODULENAME, "animationframes")) ?? 4,
       separateidle: form.querySelector(`input[name='flags.${MODULENAME}.separateidle']`)?.checked ?? token.getFlag(MODULENAME, "separateidle") ?? false,
@@ -132,14 +112,6 @@ async function OnRenderTokenConfig(config, html, context) {
       .reduce((allOptions, [val, option])=>{
         return allOptions + `<option value="${val}" ${data.sheetstyle === val ? "selected" : ""}>${game.i18n.localize(option.label)}</option>`;
       }, "");
-
-    // checkbox for whether or not this should be a spritesheet!
-    if (!form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`)) {
-      const srcFieldForCheckbox = $(form).find(`.token-config-src-picker file-picker`).first();
-      srcFieldForCheckbox.before(`<label>Sheet</label><input type="checkbox" name="flags.${MODULENAME}.spritesheet" ${data.spritesheet ? "checked" : ""}>`);
-    };
-    form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`).checked = data.spritesheet;
-    form.querySelector(`[name='flags.${MODULENAME}.spritesheet']`).readonly = isPredefined;
 
     // locks for "unlockedanchor" and "unlockedfit"
     for (const [tf,tfInput] of Object.entries({
@@ -273,18 +245,37 @@ async function OnRenderTokenConfig(config, html, context) {
   // listeners
   //
 
-  $(form).on("change", `[name='texture.src'] input[type='text'], input[name='texture.src'][type='text'], [name='flags.${MODULENAME}.sheetsrc'] input[type='text'], input[name='flags.${MODULENAME}.sheetsrc'][type='text']`, refreshConfig);
-  // dumb workaround to listen on the filepicker button too
-  $(form).on("click", `[name='texture.src'] button, [name='flags.${MODULENAME}.sheetsrc'] button`, function () {
-    const filePicker = $(this).closest("file-picker")?.get(0)?.picker;
-    if (!filePicker) return;
-    filePicker.callback = ((callback)=>{
-      return function () {
-        if (callback) callback(...arguments);
-        refreshConfig();
-      }
-    })(filePicker.callback);
-  })
+  const listenToFilepicker = function(pickerName, cb) {
+    $(form).on("change", `[name='${pickerName}'] input[type='text'], input[name='${pickerName}'][type='text']`, cb);
+    // dumb workaround to listen on the filepicker button too
+    $(form).on("click", `[name='${pickerName}'] button`, function () {
+      const filePicker = $(this).closest("file-picker")?.get(0)?.picker;
+      if (!filePicker) return;
+      filePicker.callback = ((callback)=>{
+        return function () {
+          if (callback) callback(...arguments);
+          cb();
+        }
+      })(filePicker.callback);
+    })
+  };
+
+  listenToFilepicker("texture.src", function () {
+    // figure out if the new src has a predefined sheet associated with it, and if so,
+    // toggle the spritesheet checkbox on and off to trigger the rest of the settings
+    // to update accordingly
+    const src = PredefinedSheets.cleanSrc(
+      srcPickerEl?.querySelector("input[type='text']")?.value ?? srcPickerEl?.value ?? ""
+    );
+    const hasPredefinedSheet = PredefinedSheets.getSheetSettings(src) !== undefined;
+    if (hasPredefinedSheet && !checkboxEl.checked) {
+      checkboxEl.checked = true;
+      sheetsrcPickerEl.value = src;
+    }
+    refreshConfig();
+  });
+  listenToFilepicker(`flags.${MODULENAME}.sheetsrc`, refreshConfig);
+
 
   // listen for the "spritesheet" toggle
   $(form).on("change", `[name='flags.${MODULENAME}.spritesheet']`, refreshConfig);
