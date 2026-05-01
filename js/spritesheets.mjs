@@ -447,6 +447,53 @@ function sliceTDSM_PixelCitizen(sheetKey, slicingInfo, frames) {
   sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames)
 }
 
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Jordan Bunke's "Top Down Sprite Maker" Time Elements style
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceTDSM_TimeElements(sheetKey, slicingInfo, frames) {
+  const animList = [
+    ["", [0, 1, 2]],
+    ["idle", [0]],
+    ["armsup", [0, 1, 2]],
+    ["hold", [0]],
+    ["crouch", [0]],
+    ["jump", [0, 1, 2, 3]],
+    ["anticipate", [0]],
+    ["attack", [0, 1, 2, 3]],
+    ["heavyattack", [0, 1, 2, 3, 4]],
+    ["nockbow", [0]],
+    ["bow", [0, 1, 2, 3]],
+    ["climb", [0, 1, ]],
+    ["sleep", [0]],
+  ];
+  const dirOrder = ["down", "left", "right", "up"];
+  sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames)
+}
+
+/**
+ * A function to slice a spritesheet into its component frames.
+ * 
+ * For the Jordan Bunke's "Top Down Sprite Maker" Time Elements style, only walk and idle
+ * 
+ * @param {*} sheetKey 
+ * @param {*} slicingInfo 
+ * @param {*} frames 
+ */
+function sliceTDSM_TimeElementsMini(sheetKey, slicingInfo, frames) {
+  const animList = [
+    ["", [0, 1, 2]],
+    ["idle", [0]],
+  ];
+  const dirOrder = ["down", "left", "right", "up"];
+  sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames)
+}
+
 
 export class SpritesheetGenerator {
 
@@ -516,6 +563,22 @@ export class SpritesheetGenerator {
       frames: 6, // force this to be 6 for tdsmpc
       includesIdle: true, // this style includes an idle animation
       defaultRatio: 6 / 12,
+    },
+    tdsmte: {
+      label: "TDSM Time Elements Style",
+      hint: "Jordan Bunke's Top Down Sprite Maker Time Elements style",
+      slicer: sliceTDSM_TimeElements,
+      frames: 5, // force this to be 4 for tdsmte
+      includesIdle: true, // this style includes an idle animation
+      defaultRatio: 5 / 52,
+    },
+    tdsmtem: {
+      label: "TDSM Time Elements Mini Style",
+      hint: "Jordan Bunke's Top Down Sprite Maker Time Elements mini style, walk and idle only",
+      slicer: sliceTDSM_TimeElementsMini,
+      frames: 3, // force this to be 3 for tdsmtem
+      includesIdle: true, // this style includes an idle animation
+      defaultRatio: 3 / 8,
     },
   };
 
