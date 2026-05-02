@@ -195,16 +195,12 @@ export function register() {
           // Load token texture
           await this.playFromSpritesheet();
       
-          // Cache token ring subject texture if needed
-          // const ring = this.document.ring;
-          // if ( ring.enabled && ring.subject.texture ) await foundry.canvas.loadTexture(ring.subject.texture);
-      
+          // disable token rings
+          if ( this.hasDynamicRing ) this._PRIVATE_ring.clear();
+          this._PRIVATE_ring = null;
       
           // Draw the token's PrimarySpriteMesh in the PrimaryCanvasGroup
           this.mesh = canvas.primary.addToken(this);
-      
-          // Initialize token ring
-          // this.#initializeRing();
       
           // Draw the border
           this.border ||= this.addChild(new PIXI.Graphics());
@@ -262,7 +258,7 @@ export function register() {
         if (this.#textures == null || this.#textureSrc !== this.sheetSrc || this.#textureKey !== genSpritesheetKey) {
           let texture;
           try {
-            if ( this._original ) texture = this._original.texture?.clone();
+            if ( this._original && this._original.#textureKey == genSpritesheetKey ) texture = this._original.texture?.clone();
             else texture = await foundry.canvas.loadTexture(this.sheetSrc, {fallback: CONST.DEFAULT_TOKEN});
           } catch {
             texture = null;
@@ -372,16 +368,6 @@ export function register() {
       _refreshState() {
         super._refreshState();
         this.mesh.alpha = this.alpha * (this.hover ? Math.clamp(this.#localOpacity, 0.2, 1) : this.#localOpacity ) * this.document.alpha;
-      }
-
-      _canDrag() {
-        try {
-          const scene = this?.document?.parent;
-          const hasCombat = getCombatsForScene(scene?.uuid).length > 0;
-          if (!game.user.isGM && (scene.getFlag(MODULENAME, "disableDrag") && !(scene.getFlag(MODULENAME, "outOfCombat") && hasCombat)))
-            return false;
-        } catch { }
-        return super._canDrag();
       }
 
       #updateDirection() {
