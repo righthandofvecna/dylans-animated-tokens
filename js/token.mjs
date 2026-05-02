@@ -105,6 +105,7 @@ function OnCreateCombatant(combatant) {
 
 export function register() {
   const MODULE = game.modules.get(MODULENAME);
+  const IS_V14 = foundry.utils.isNewerVersion(game.version, "14.351");
   Hooks.on("canvasConfig", ()=>{
     class SpritesheetToken extends NonPrivateTokenMixin(CONFIG.Token.objectClass) {
       #index;
@@ -227,6 +228,7 @@ export function register() {
           // Draw Token interface components
           this.bars ||= this.addChild(this._PRIVATE_drawAttributeBars());
           this.tooltip ||= this.addChild(this._PRIVATE_drawTooltip());
+          if (IS_V14) this.levelIndicator ||= this.addChild(this._PRIVATE_drawLevelIndicator());
           this.effects ||= this.addChild(new PIXI.Container());
           this.targetArrows ||= this.addChild(new PIXI.Graphics());
           this.targetPips ||= this.addChild(new PIXI.Graphics());
@@ -714,7 +716,8 @@ export function register() {
         }
         
         // Invalidate cached textures when spritesheet configuration changes
-        const needsTextureRefresh = changed.flags?.[MODULENAME]?.spritesheet !== undefined ||
+        const needsTextureRefresh = changed.flags?.[MODULENAME]?.sheetsrc !== undefined ||
+                                    changed.flags?.[MODULENAME]?.spritesheet !== undefined ||
                                     changed.flags?.[MODULENAME]?.sheetstyle !== undefined ||
                                     changed.flags?.[MODULENAME]?.animationframes !== undefined;
         

@@ -6,9 +6,9 @@ import re
 # get local settings
 with open("local.json", "r") as local:
     data = json.load(local)
-    FOUNDRYV13 = data["FOUNDRYV13"]
-    FOUNDRY_JS_PATH = os.path.join(FOUNDRYV13, "resources", "app", "public", "scripts", "foundry.mjs")
-TOKEN_MJS_PATH = os.path.join("js", "foundry", "token.mjs")
+    FOUNDRYV14 = data["FOUNDRYV14"]
+    FOUNDRY_JS_PATH = os.path.join(FOUNDRYV14, "resources", "app", "public", "scripts", "foundry.mjs")
+TOKEN_MJS_PATH = os.path.join("js", "foundry", "token-v14.mjs")
 
 
 def extract_class(filepath, className):
