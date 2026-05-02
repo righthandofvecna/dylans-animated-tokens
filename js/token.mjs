@@ -139,8 +139,12 @@ export function register() {
         this.#surfTextures = null;
       }
 
-      /** @override */
+      /**
+       * @override
+       * @deprecated
+       */
       clear() {
+        if (IS_V14) return;
         super.clear();
         this.#index = 0;
         this.#textures = null;
@@ -823,7 +827,7 @@ export function register() {
         return (this._movementLocks?.size ?? 0) === 0;
       }
     });
-    Hooks.callAll("dylans.animatedTokens.spritesheetTokenReady", CONFIG.Token.objectClass);
+    Hooks.callAll(`${MODULENAME}.spritesheetTokenReady`, CONFIG.Token.objectClass);
   });
 
   Hooks.on("updateToken", OnUpdateToken);

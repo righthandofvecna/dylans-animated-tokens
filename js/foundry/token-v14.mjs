@@ -2,11 +2,13 @@ const { PointMovementSource } = foundry.canvas.sources;
 const { PreciseText } = foundry.canvas.containers;
 const { PrimarySpriteMesh } = foundry.canvas.primary;
 const { PlaceableObject } = foundry.canvas.placeables;
+const { TokenRing } = foundry.canvas.placeables.tokens;
 const { Ray } = foundry.canvas.geometry;
 const { CanvasAnimation } = foundry.canvas.animation;
 const { PrimaryCanvasGroup } = foundry.canvas.groups;
 const { InvisibilityFilter } = foundry.canvas.rendering.filters;
-const { loadTexture } = foundry.canvas;
+const { MouseInteractionManager } = foundry.canvas.interaction;
+const { loadTexture, getTexture } = foundry.canvas;
 const { REGION_MOVEMENT_SEGMENTS } = CONST;
 
 export function NonPrivateTokenMixin(TokenClass) {
