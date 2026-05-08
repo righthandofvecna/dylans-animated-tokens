@@ -108,7 +108,7 @@ async function OnRenderTokenConfig(config, html, context) {
 
     // Populate the dropdown for the types of spritesheet layouts available (exclude aliases)
     data.sheetStyleOptions = Object.entries(SpritesheetGenerator.SHEET_STYLES)
-      .filter(([val, option]) => !option.alias) // Filter out aliased entries
+      .filter(([val, option]) => data.sheetstyle === val || (!option.alias && !option.hidden)) // Filter out aliased entries and hidden unselected entries
       .reduce((allOptions, [val, option])=>{
         return allOptions + `<option value="${val}" ${data.sheetstyle === val ? "selected" : ""}>${game.i18n.localize(option.label)}</option>`;
       }, "");

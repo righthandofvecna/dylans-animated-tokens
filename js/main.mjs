@@ -1,5 +1,6 @@
 import { MODULENAME } from "./utils.mjs";
 import * as migration from "./migration.mjs";
+import * as preload from "./preload.mjs";
 import * as settings from "./settings.mjs";
 import * as tokensLayer from "./tokens-layer.mjs";
 import * as token from "./token.mjs";
@@ -15,6 +16,7 @@ import * as api from "./api.mjs";
 Hooks.on("init", ()=>{
   for (const [name, m] of [
     ["migration", migration],
+    ["preload", preload],
     ["settings", settings],
     ["tokensLayer", tokensLayer],
     ["token", token],

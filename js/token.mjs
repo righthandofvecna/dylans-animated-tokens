@@ -258,7 +258,7 @@ export function register() {
       }
 
       async playFromSpritesheet() {
-        const genSpritesheetKey = SpritesheetGenerator.generateKey(this.sheetSrc, this.sheetStyle, this.animationFrames);
+        const genSpritesheetKey = SpritesheetGenerator.generateKeyForToken(this);
         if (this.#textures == null || this.#textureSrc !== this.sheetSrc || this.#textureKey !== genSpritesheetKey) {
           let texture;
           try {
