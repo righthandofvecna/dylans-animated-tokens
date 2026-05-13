@@ -178,6 +178,10 @@ export function register() {
         return !this.separateIdle && game.settings.get(MODULENAME, "playIdleAnimations") && !this.document.getFlag(MODULENAME, "noidle");
       }
 
+      get hasFacing() {
+        return this.isSpritesheet || !(this.document.lockRotation || !game.settings.get("core", "tokenAutoRotate"));
+      }
+
       get allAnimationsPromise() {
         return Promise.allSettled(this.animationContexts.values().map(c=>c.promise))
       }
