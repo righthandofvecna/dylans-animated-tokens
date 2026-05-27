@@ -71,6 +71,9 @@ async function _onReady() {
   // if this module isn't the first active one in the cross promo list, don't show (we don't want multiple popups showing)
   if (PROMO_MODULES.filter(m => game.modules.get(m.id)?.active)?.at(0)?.id !== MODULENAME) return;
 
+  // if all the modules are already installed, don't show
+  if (PROMO_MODULES.every(m => !!game.modules.get(m.id))) return;
+
   // Don't interrupt a session where other users are already connected.
   if (game.users.filter((u) => u.active).length > 1) return;
 
