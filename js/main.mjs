@@ -2,6 +2,7 @@ import { MODULENAME } from "./utils.mjs";
 import * as migration from "./migration.mjs";
 import * as preload from "./preload.mjs";
 import * as settings from "./settings.mjs";
+import * as crossPromo from "./cross-promo.mjs";
 import * as tokensLayer from "./tokens-layer.mjs";
 import * as token from "./token.mjs";
 import * as tokenConfig from "./token-config.mjs";
@@ -18,6 +19,7 @@ Hooks.on("init", ()=>{
     ["migration", migration],
     ["preload", preload],
     ["settings", settings],
+    ["crossPromo", crossPromo],
     ["tokensLayer", tokensLayer],
     ["token", token],
     ["tokenConfig", tokenConfig],
