@@ -137,7 +137,7 @@ def transform_members(members, oldCls, newCls):
         if "#" in member:
             member = member.replace("#", "_PRIVATE_")
         if f"{oldCls}._PRIVATE_" in member:
-            member = member.replace(f" {oldCls}._PRIVATE_", f" {newCls}._PRIVATE_")
+            member = re.sub(re.compile(f"\\b{oldCls}\\._PRIVATE_"), f"{newCls}._PRIVATE_", member)
         withoutComments = re.sub(r'(\/\/.*)|(\/\*[\s\S]*?\*\/)', '', member, flags=re.MULTILINE)
         if "_PRIVATE_" in withoutComments:
             transformed_members.append(member)

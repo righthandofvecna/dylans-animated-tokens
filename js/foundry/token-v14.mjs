@@ -175,7 +175,7 @@ export function NonPrivateTokenMixin(TokenClass) {
     const y = Math.round(point.y);
     const elevation = point.elevation;
     point = {x, y, elevation};
-    if ( ((offsetX === 0) && (offsetY === 0)) || !Token._PRIVATE_needsMovementAdjustment(point) ) return point;
+    if ( ((offsetX === 0) && (offsetY === 0)) || !NonPrivateToken._PRIVATE_needsMovementAdjustment(point) ) return point;
     point.x -= offsetX;
     point.y -= offsetY;
     return point;
@@ -228,6 +228,74 @@ export function NonPrivateTokenMixin(TokenClass) {
    */
   get isDragged() {
     return !!this._PRIVATE_getDragContext();
+  };
+
+  /* -------------------------------------------- */
+
+  /**
+   * Determine whether the Token is visible to the calling user's perspective.
+   * Hidden Tokens are only displayed to GM Users.
+   * Non-hidden Tokens are always visible if Token Vision is not required.
+   * Controlled tokens are always visible.
+   * All Tokens are visible to a GM user if no Token is controlled.
+   *
+   * @override
+   */
+  get isVisible() {
+    // Clear the detection filter
+    this.detectionFilter = null;
+
+    if ( this.isPreview ) return true;
+    if ( this._preview?._previewType === "config" ) return false;
+    if ( this.controlled ) return true;
+    if ( this.layer.active && this.document.visible && (ui.placeables?.isEntryVisible(this) === false) ) return false;
+
+    // Only GM users can see hidden tokens
+    const gm = game.user.isGM;
+    if ( this.document.hidden && !gm ) return false;
+
+    // Some tokens are always visible
+    if ( !canvas.visibility.tokenVision ) return !this._PRIVATE_testCulled();
+
+    // Otherwise, test visibility against current sight polygons
+    if ( this.vision?.active ) return true;
+    if ( gm && !canvas.effects.visionSources.some(s => s.active) ) return !this._PRIVATE_testCulled();
+    return canvas.visibility.testVisibility(this.document.getVisibilityTestPoints(), {tolerance: 0, object: this});
+  };
+
+  /* -------------------------------------------- */
+
+  /**
+   * Test if this Token should be culled.
+   * @returns {boolean}
+   */
+  _PRIVATE_testCulled() {
+    if ( this.document.level === canvas.level.id ) return false;
+    let minElevation;
+    let maxElevation;
+    const tokenElevation = this.document.getMovementOrigin().elevation;
+    if ( tokenElevation < canvas.level.elevation.bottom ) {
+      minElevation = Math.nextUp(tokenElevation);
+      maxElevation = canvas.level.elevation.bottom;
+    } else if ( tokenElevation >= canvas.level.elevation.top ) {
+      minElevation = canvas.level.elevation.top;
+      maxElevation = tokenElevation;
+    }
+    else return false;
+    let tokenBounds;
+    const relevantSurfaces = [];
+    for ( const surface of canvas.scene.getSurfaces({level: canvas.level.id, culling: true}) ) {
+      if ( surface.elevation > maxElevation ) break;
+      if ( surface.elevation < minElevation ) continue;
+      tokenBounds ??= this.bounds;
+      const {polygonTree} = surface.region;
+      if ( polygonTree.bounds.intersects(tokenBounds) ) relevantSurfaces.push(polygonTree);
+    }
+    if ( !relevantSurfaces.length ) return false;
+    for ( const point of this.document.getOcclusionTestPoints() ) {
+      if ( !relevantSurfaces.some(t => t.testPoint(point)) ) return false;
+    }
+    return true;
   };
 
   /* -------------------------------------------- */
@@ -961,7 +1029,7 @@ export function NonPrivateTokenMixin(TokenClass) {
 
       // Shared FoW ?
       const shared = canvas.fog.sharedExploration;
-      const contributes = shared && this._isFogExplorationSource() && !this.vision?.active;
+      const contributes = shared && !this.vision?.active && (levelChanged || this._isFogExplorationSource());
       if ( contributes ) {
         flags.refreshVision = true;
         flags.refreshLighting = true;
