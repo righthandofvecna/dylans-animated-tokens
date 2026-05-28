@@ -8,9 +8,10 @@ import { MODULENAME } from "./utils.mjs";
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceDLRU(sheetKey, slicingInfo, frames) {
+function sliceDLRU(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / frames, slicingInfo.meta.size.h / 4];
   for (let c=0; c<frames; c++) {
     for (let r=0; r<4; r++) {
@@ -51,10 +52,10 @@ function sliceDLRU(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceDURLeduced(sheetKey, slicingInfo, frames) {
-  frames = 3; // force this to be 3 for dlruReduced
+function sliceDURLeduced(sheetKey, slicingInfo, options) {
+  const frames = 3; // force this to be 3 for dlruReduced
   const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / frames, slicingInfo.meta.size.h / 4];
   for (let c=0; c<frames; c++) {
     for (let r=0; r<4; r++) {
@@ -100,9 +101,10 @@ function sliceDURLeduced(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceEight(sheetKey, slicingInfo, frames) {
+function sliceEight(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / frames, slicingInfo.meta.size.h / 8];
   for (let c=0; c<frames; c++) {
     for (let r=0; r<8; r++) {
@@ -138,9 +140,10 @@ function sliceEight(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceDiagonal(sheetKey, slicingInfo, frames) {
+function sliceDiagonal(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / frames, slicingInfo.meta.size.h / 4];
   for (let c=0; c<frames; c++) {
     for (let r=0; r<4; r++) {
@@ -182,10 +185,10 @@ function sliceDiagonal(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceNihey(sheetKey, slicingInfo, frames) {
-  frames = 3; // force this to be 3 for Nihey
+function sliceNihey(sheetKey, slicingInfo, options) {
+  const frames = 3; // force this to be 3 for Nihey
   const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / frames, slicingInfo.meta.size.h / 4];
   for (let c=0; c<frames; c++) {
     for (let r=0; r<4; r++) {
@@ -231,9 +234,10 @@ function sliceNihey(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceUniversalLPC(sheetKey, slicingInfo, frames) {
+function sliceUniversalLPC(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const [frameWidth, frameHeight] = [slicingInfo.meta.size.w / 13, slicingInfo.meta.size.h / 54];
   for (let c=0; c<9; c++) {
     for (let r=0; r<4; r++) {
@@ -275,9 +279,10 @@ function sliceUniversalLPC(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceMemao(sheetKey, slicingInfo, frames) {
+function sliceMemao(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   slicingInfo.animations = {
     ...slicingInfo.animations,
     ...Object.fromEntries(Object.keys(SpritesheetGenerator.DIRECTIONS).map(k=>[`idle${k}`,[]])),
@@ -387,9 +392,10 @@ function sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceTDSM_Gen3(sheetKey, slicingInfo, frames) {
+function sliceTDSM_Gen3(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const animList = [
     ["", [1, 0, 1, 2]],
     ["idle", [0]],
@@ -414,9 +420,10 @@ function sliceTDSM_Gen3(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceTDSM_Gen4(sheetKey, slicingInfo, frames) {
+function sliceTDSM_Gen4(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const animList = [
     ["", [1, 0, 1, 2]],
     ["idle", [0]],
@@ -435,9 +442,10 @@ function sliceTDSM_Gen4(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceTDSM_PixelCitizen(sheetKey, slicingInfo, frames) {
+function sliceTDSM_PixelCitizen(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const animList = [
     ["idle", [0, 1, 2, 3]],
     ["", [0, 1, 2, 3, 4, 5]],
@@ -454,9 +462,10 @@ function sliceTDSM_PixelCitizen(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceTDSM_TimeElements(sheetKey, slicingInfo, frames) {
+function sliceTDSM_TimeElements(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const animList = [
     ["", [0, 1, 2]],
     ["idle", [0]],
@@ -483,9 +492,10 @@ function sliceTDSM_TimeElements(sheetKey, slicingInfo, frames) {
  * 
  * @param {*} sheetKey 
  * @param {*} slicingInfo 
- * @param {*} frames 
+ * @param {*} options 
  */
-function sliceTDSM_TimeElementsMini(sheetKey, slicingInfo, frames) {
+function sliceTDSM_TimeElementsMini(sheetKey, slicingInfo, options) {
+  const frames = options.frames;
   const animList = [
     ["", [0, 1, 2]],
     ["idle", [0]],
@@ -495,9 +505,31 @@ function sliceTDSM_TimeElementsMini(sheetKey, slicingInfo, frames) {
 }
 
 
+
+/**
+ * A function to slice a custom spritesheet into its component frames.
+ * 
+ * @param {*} sheetKey
+ * @param {*} slicingInfo
+ * @param {*} options
+ */
+function sliceCustom(sheetKey, slicingInfo, options) {
+  const animList = options.animList ?? ["", [0]];
+  const dirOrder = options.dirOrder ?? ["down", "left", "right", "up"];
+  sliceFromAnimList(animList, dirOrder, sheetKey, slicingInfo)
+  
+}
+
 export class SpritesheetGenerator {
 
   static SHEET_STYLES = {
+    custom: {
+      label: "DAT.SheetStyle.Custom.Label",
+      hint: "DAT.SheetStyle.Custom.Hint",
+      slicer: sliceCustom,
+      frames: 1, // don't show the number of frames
+      hidden: true, // hide this style since it's just for internal use in slicing custom sheets
+    },
     dlru: {
       label: "DAT.SheetStyle.DLRU.Label",
       hint: "DAT.SheetStyle.DLRU.Hint",
@@ -554,7 +586,7 @@ export class SpritesheetGenerator {
       slicer: sliceTDSM_Gen4,
       frames: 3, // force this to be 3 for tdsm4
       includesIdle: true, // this style includes an idle animation
-      defaultRatio: 5 / 20,
+      defaultRatio: 3 / 20,
     },
     tdsmpc: {
       label: "TDSM PixelCitizen Style",
@@ -599,13 +631,29 @@ export class SpritesheetGenerator {
     this.spritesheets = {};
   }
 
-  static generateKey(src, mode, frames) {
-    if (mode === "dlruReduced") frames = 3;
+  static generateKey(src, mode, options) {
+    if (mode === "custom") {
+      const j = JSON.stringify(options);
+      const hash = btoa(unescape(encodeURIComponent(j))).slice(0,8); // generate a short hash of the options for the key
+      return `${mode}-${hash}:${src}`;
+    }
+    const frames = options.frames ?? SpritesheetGenerator.SHEET_STYLES[mode]?.frames ?? 1;
     return `${mode}-${frames}:${src}`;
   }
 
-  async #getSpritesheet(src, texture, mode, frames) {
-    const sheetKey = SpritesheetGenerator.generateKey(src, mode, frames);
+  static generateKeyForToken(tilesetToken) {
+    const src = tilesetToken.document.getFlag(MODULENAME, "sheetsrc") ?? tilesetToken.document.texture.src;
+    const mode = tilesetToken.sheetStyle;
+    const options = {
+      frames: tilesetToken.animationFrames,
+      animList: tilesetToken.document.getFlag(MODULENAME, "animlist"),
+      dirOrder: tilesetToken.document.getFlag(MODULENAME, "dirorder"),
+    }
+    return SpritesheetGenerator.generateKey(src, mode, options);
+  }
+
+  async #getSpritesheet(src, texture, mode, options) {
+    const sheetKey = SpritesheetGenerator.generateKey(src, mode, options);
     if (sheetKey in this.spritesheets) {
       if (this.spritesheets[sheetKey]?.baseTexture?.valid) return this.spritesheets[sheetKey];
 
@@ -631,7 +679,7 @@ export class SpritesheetGenerator {
     };
     
     // slice the spritesheet
-    slicer(sheetKey, spritesheetSlicingInfo, frames);
+    slicer(sheetKey, spritesheetSlicingInfo, options);
 
     const spritesheet = new PIXI.Spritesheet(texture, spritesheetSlicingInfo);
     // Generate all the Textures asynchronously
@@ -641,22 +689,26 @@ export class SpritesheetGenerator {
     return spritesheet;
   }
 
-  async getTexture(src, texture, mode, frames, direction, index=0) {
-    const spritesheet = await this.#getSpritesheet(src, texture, mode, frames);
+  async getTexture(src, texture, mode, options, direction, index=0) {
+    const spritesheet = await this.#getSpritesheet(src, texture, mode, options);
     return spritesheet.animations[direction][index];
   }
 
-  async getTextures(src, texture, mode, frames) {
-    const spritesheet = await this.#getSpritesheet(src, texture, mode, frames);
+  async getTextures(src, texture, mode, options) {
+    const spritesheet = await this.#getSpritesheet(src, texture, mode, options);
     return spritesheet.animations;
   }
 
   async getTexturesForToken(tilesetToken, texture) {
     const spritesheet = await this.#getSpritesheet(
-      tilesetToken.document.texture.src,
+      tilesetToken.document.getFlag(MODULENAME, "sheetsrc") ?? tilesetToken.document.texture.src,
       texture,
       tilesetToken.sheetStyle,
-      tilesetToken.animationFrames
+      {
+        frames: tilesetToken.animationFrames,
+        animList: tilesetToken.document.getFlag(MODULENAME, "animlist"),
+        dirOrder: tilesetToken.document.getFlag(MODULENAME, "dirorder"),
+      }
     );
     spritesheet._registeredTokens ??= new Set();
     spritesheet._registeredTokens.add(tilesetToken);

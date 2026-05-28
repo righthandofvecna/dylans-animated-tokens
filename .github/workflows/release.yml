@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install esbuild
+
+      - name: Get version from module.json
+        id: version
+        run: echo "version=$(jq -r '.version' module.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Build release zip
+        run: |
+          echo "export const VERSION = \"$(jq -r '.version' module.json)\";" > js/version.mjs
+          npx esbuild js/main.mjs --bundle --minify --outfile=dylans-animated-tokens.js
+          zip module.zip -r lang templates img dylans-animated-tokens.js module.json
+
+      - name: Create Version Release
+        id: create_version_release
+        uses: ncipollo/release-action@v1
+        with:
+            name: v${{ steps.version.outputs.version }}
+            allowUpdates: false
+            draft: false
+            prerelease: false
+            token: ${{ secrets.GITHUB_TOKEN }}
+            artifacts: "./module.json,./module.zip"
+            tag: v${{ steps.version.outputs.version }}

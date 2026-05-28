@@ -1,27 +1,35 @@
-
+import { MODULENAME } from "./utils.mjs";
 import * as migration from "./migration.mjs";
+import * as preload from "./preload.mjs";
 import * as settings from "./settings.mjs";
+import * as crossPromo from "./cross-promo.mjs";
 import * as tokensLayer from "./tokens-layer.mjs";
 import * as token from "./token.mjs";
 import * as tokenConfig from "./token-config.mjs";
 import * as tokenMovement from "./token-movement.mjs";
 import * as spritesheets from "./spritesheets.mjs";
+import * as predefinedSheets from "./predefined-sheets.mjs";
 import * as pixelate from "./pixelate.mjs";
 import * as canvas from "./canvas.mjs";
 import * as moduleCompatibility from "./module-compatibility/index.mjs";
+import * as api from "./api.mjs";
 
 Hooks.on("init", ()=>{
   for (const [name, m] of [
     ["migration", migration],
+    ["preload", preload],
     ["settings", settings],
+    ["crossPromo", crossPromo],
     ["tokensLayer", tokensLayer],
     ["token", token],
     ["tokenConfig", tokenConfig],
     ["tokenMovement", tokenMovement],
     ["spritesheets", spritesheets],
+    ["predefinedSheets", predefinedSheets],
     ["pixelate", pixelate],
     ["canvas", canvas],
     ["moduleCompatibility", moduleCompatibility],
+    ["api", api],
   ]) {
     try {
       m.register();
@@ -29,4 +37,8 @@ Hooks.on("init", ()=>{
       console.error(`${name}.register():`, e);
     }
   }
+
+  const MODULE = game.modules.get(MODULENAME);
+  Hooks.callAll(`${MODULENAME}.init`);
+  MODULE.initialized = true;
 })

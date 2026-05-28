@@ -6,9 +6,9 @@ import re
 # get local settings
 with open("local.json", "r") as local:
     data = json.load(local)
-    FOUNDRYV13 = data["FOUNDRYV13"]
-    FOUNDRY_JS_PATH = os.path.join(FOUNDRYV13, "resources", "app", "public", "scripts", "foundry.mjs")
-TOKEN_MJS_PATH = os.path.join("js", "foundry", "token.mjs")
+    FOUNDRYV14 = data["FOUNDRYV14"]
+    FOUNDRY_JS_PATH = os.path.join(FOUNDRYV14, "resources", "app", "public", "scripts", "foundry.mjs")
+TOKEN_MJS_PATH = os.path.join("js", "foundry", "token-v14.mjs")
 
 
 def extract_class(filepath, className):
@@ -170,11 +170,13 @@ def generate_token_class():
 const { PreciseText } = foundry.canvas.containers;
 const { PrimarySpriteMesh } = foundry.canvas.primary;
 const { PlaceableObject } = foundry.canvas.placeables;
+const { TokenRing } = foundry.canvas.placeables.tokens;
 const { Ray } = foundry.canvas.geometry;
 const { CanvasAnimation } = foundry.canvas.animation;
 const { PrimaryCanvasGroup } = foundry.canvas.groups;
 const { InvisibilityFilter } = foundry.canvas.rendering.filters;
-const { loadTexture } = foundry.canvas;
+const { MouseInteractionManager } = foundry.canvas.interaction;
+const { loadTexture, getTexture } = foundry.canvas;
 const { REGION_MOVEMENT_SEGMENTS } = CONST;\n\n""")
         outfile.write("export function NonPrivateTokenMixin(TokenClass) {\n  return class NonPrivateToken extends TokenClass {")
         for member in transformed_members:

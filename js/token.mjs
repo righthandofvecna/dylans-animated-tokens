@@ -18,7 +18,8 @@ async function OnUpdateToken(token, changes, metadata, user) {
   const needsRedraw = changes?.texture?.src ||
                       changes?.flags?.[MODULENAME]?.sheetstyle ||
                       changes?.flags?.[MODULENAME]?.animationframes ||
-                      changes?.flags?.[MODULENAME]?.spritesheet !== undefined;
+                      changes?.flags?.[MODULENAME]?.spritesheet !== undefined ||
+                      changes?.flags?.[MODULENAME]?.sheetsrc !== undefined;
   
   if (!needsRedraw) return;
 
@@ -103,6 +104,8 @@ function OnCreateCombatant(combatant) {
 
 
 export function register() {
+  const MODULE = game.modules.get(MODULENAME);
+  const IS_V14 = foundry.utils.isNewerVersion(game.version, "14.351");
   Hooks.on("canvasConfig", ()=>{
     class SpritesheetToken extends NonPrivateTokenMixin(CONFIG.Token.objectClass) {
       #index;
@@ -113,6 +116,9 @@ export function register() {
       #localOpacity;
       #idle;
       #run;
+      #surfingCached;
+      #surfSprite;
+      #surfTextures;
 
       constructor(document) {
         super(document);
@@ -123,15 +129,29 @@ export function register() {
         this.#localOpacity = 1;
         this.#idle = false;
         this.#run = false;
+        this.#surfingCached = {
+          i: undefined,
+          j: undefined,
+          k: undefined,
+          value: undefined,
+        }
+        this.#surfSprite = null;
+        this.#surfTextures = null;
       }
 
-      /** @override */
+      /**
+       * @override
+       * @deprecated
+       */
       clear() {
+        if (IS_V14) return;
         super.clear();
         this.#index = 0;
         this.#textures = null;
         this.#textureSrc = null;
         this.#direction = "down";
+        this.#surfSprite = null;
+        this.#surfTextures = null;
       }
 
       get isSpritesheet() {
@@ -146,12 +166,20 @@ export function register() {
         return this.document.getFlag(MODULENAME, "animationframes") ?? 4;
       }
 
+      get sheetSrc() {
+        return this.document.getFlag(MODULENAME, "sheetsrc") ?? this.document.texture.src;
+      }
+
       get separateIdle() {
         return this.document.getFlag(MODULENAME, "separateidle") ?? false;
       }
 
       get alwaysIdle() {
         return !this.separateIdle && game.settings.get(MODULENAME, "playIdleAnimations") && !this.document.getFlag(MODULENAME, "noidle");
+      }
+
+      get hasFacing() {
+        return this.isSpritesheet || !(this.document.lockRotation || !game.settings.get("core", "tokenAutoRotate"));
       }
 
       get allAnimationsPromise() {
@@ -175,16 +203,12 @@ export function register() {
           // Load token texture
           await this.playFromSpritesheet();
       
-          // Cache token ring subject texture if needed
-          // const ring = this.document.ring;
-          // if ( ring.enabled && ring.subject.texture ) await foundry.canvas.loadTexture(ring.subject.texture);
-      
+          // disable token rings
+          if ( this.hasDynamicRing ) this._PRIVATE_ring.clear();
+          this._PRIVATE_ring = null;
       
           // Draw the token's PrimarySpriteMesh in the PrimaryCanvasGroup
           this.mesh = canvas.primary.addToken(this);
-      
-          // Initialize token ring
-          // this.#initializeRing();
       
           // Draw the border
           this.border ||= this.addChild(new PIXI.Graphics());
@@ -208,6 +232,7 @@ export function register() {
           // Draw Token interface components
           this.bars ||= this.addChild(this._PRIVATE_drawAttributeBars());
           this.tooltip ||= this.addChild(this._PRIVATE_drawTooltip());
+          if (IS_V14) this.levelIndicator ||= this.addChild(this._PRIVATE_drawLevelIndicator());
           this.effects ||= this.addChild(new PIXI.Container());
           this.targetArrows ||= this.addChild(new PIXI.Graphics());
           this.targetPips ||= this.addChild(new PIXI.Graphics());
@@ -231,16 +256,25 @@ export function register() {
         // draw the indicators (caught/uncaught/etc)
         this.indicators ||= this.addChild(new PIXI.Container());
         await this._drawIndicators();
+
+        // draw the surf sprite
+        await this._drawSurfSprite();
       }
 
       async playFromSpritesheet() {
-        const genSpritesheetKey = SpritesheetGenerator.generateKey(this.document.texture.src, this.sheetStyle, this.animationFrames);
-        if (this.#textures == null || this.#textureSrc !== this.document.texture.src || this.#textureKey !== genSpritesheetKey) {
+        const genSpritesheetKey = SpritesheetGenerator.generateKeyForToken(this);
+        if (this.#textures == null || this.#textureSrc !== this.sheetSrc || this.#textureKey !== genSpritesheetKey) {
           let texture;
-          if ( this._original ) texture = this._original.texture?.clone();
-          else texture = await foundry.canvas.loadTexture(this.document.texture.src, {fallback: CONST.DEFAULT_TOKEN});
+          try {
+            if ( this._original && this._original.#textureKey == genSpritesheetKey ) texture = this._original.texture?.clone();
+            else texture = await foundry.canvas.loadTexture(this.sheetSrc, {fallback: CONST.DEFAULT_TOKEN});
+          } catch {
+            texture = null;
+          }
 
-          this.#textureSrc = this.document.texture.src;
+          if (!texture) return;
+
+          this.#textureSrc = this.sheetSrc;
           this.#textures = await game.modules.get(MODULENAME).api.spritesheetGenerator.getTexturesForToken(this, texture);
           this.#textureKey = genSpritesheetKey;
         }
@@ -250,6 +284,19 @@ export function register() {
 
       get isometric() {
         return game.modules.get("isometric-perspective")?.active && tokenScene(this.document)?.flags?.["isometric-perspective"]?.isometricEnabled;
+      }
+
+      get surfing() {
+        const offset = game.canvas.grid.getOffset({
+          ...this.center,
+          elevation: this.document.elevation,
+        });
+        if (this.#surfingCached !== undefined && this.#surfingCached.i === offset.i && this.#surfingCached.j === offset.j && this.#surfingCached.k === offset.k) return this.#surfingCached.value;
+        this.#surfingCached = {
+          ...offset,
+          value: game.modules.get(MODULENAME).api.isWater(game.canvas.grid.getCenterPoint(offset)),
+        }
+        return this.#surfingCached.value;
       }
 
       get direction() {
@@ -311,6 +358,7 @@ export function register() {
             });
           }
         }
+        this._refreshSurfSprite();
       }
 
       set localOpacity(opacity) {
@@ -328,16 +376,6 @@ export function register() {
       _refreshState() {
         super._refreshState();
         this.mesh.alpha = this.alpha * (this.hover ? Math.clamp(this.#localOpacity, 0.2, 1) : this.#localOpacity ) * this.document.alpha;
-      }
-
-      _canDrag() {
-        try {
-          const scene = this?.document?.parent;
-          const hasCombat = getCombatsForScene(scene?.uuid).length > 0;
-          if (!game.user.isGM && (scene.getFlag(MODULENAME, "disableDrag") && !(scene.getFlag(MODULENAME, "outOfCombat") && hasCombat)))
-            return false;
-        } catch { }
-        return super._canDrag();
       }
 
       #updateDirection() {
@@ -520,6 +558,8 @@ export function register() {
 
         if (this.document._sliding) { // slide with one leg out
           this.#index = 1;
+        } else if (this.surfing) { // surfing animation
+          this.#index = 0; // stand on surfboard
         }
 
         const newTexture = this.#getTexture();
@@ -529,19 +569,88 @@ export function register() {
             refreshMesh: true,
           });
         }
+        
+        // Update surf sprite
+        this._refreshSurfSprite();
+
         return super._onAnimationUpdate(changed, context);
       }
 
       /**
-       * 
+       * Draw or update the surf sprite underneath the token when surfing.
+       * @protected
+       */
+      async _drawSurfSprite() {
+        // Load surf textures if not already loaded
+        if (!this.#surfTextures) {
+          const surfSheetSrc = game.modules.get(MODULENAME).api.getSurfboard(this.document);
+          const surfSheet = await PIXI.Assets.load(surfSheetSrc);
+          this.#surfTextures = surfSheet.animations;
+        }
+
+        // Create surf sprite if it doesn't exist
+        if (!this.#surfSprite) {
+          this.#surfSprite = new PIXI.AnimatedSprite([PIXI.Texture.EMPTY]);
+          this.#surfSprite.anchor.set(0.5, 0.5);
+          this.#surfSprite.zIndex = -1; // Render underneath the main token
+          this.addChild(this.#surfSprite);
+        }
+
+        this._refreshSurfSprite();
+      }
+
+      /**
+       * Refresh the surf sprite visibility, texture, and position.
+       * @protected
+       */
+      _refreshSurfSprite() {
+        if (!this.#surfSprite || !this.#surfTextures) return;
+
+        const isSurfing = this.surfing;
+        
+        // Only show surf sprite when surfing
+        this.#surfSprite.visible = isSurfing;
+        
+        if (!this.#surfSprite.visible) return;
+
+        // Get the appropriate directional texture
+        const direction = this.#direction || "down";
+        const textures = this.#surfTextures[direction];
+        
+        if (textures && textures.length > 0) {
+          this.#surfSprite.textures = textures;
+          this.#surfSprite.gotoAndStop(0); // Use first frame
+        }
+
+        // Scale the surf sprite to match token width
+        const tokenWidth = this.document.width * canvas.grid.size;
+        const tokenHeight = this.document.height * canvas.grid.size;
+        const surfTexture = this.#surfSprite.texture;
+        if (surfTexture && surfTexture.width > 0) {
+          const scale = 1.2 * tokenWidth / surfTexture.width;
+          this.#surfSprite.scale.set(scale, scale);
+        }
+
+        // Position the surf sprite centered horizontally and 75% down the token's height
+        this.#surfSprite.position.set(tokenWidth * 0.5, tokenHeight * 0.75);
+      }
+
+      /**
+       * Draw or update the indicators on top of the token.
+       * @protected
        */
       async _drawIndicators() {
+        if (!this.indicators) return;
         this.indicators.renderable = false;
 
-        // clear caught indicator
-        this.indicators.removeChildren().forEach(c => c.destroy());
+        // Other modules should extend the `getIndicators` API method to return an array of
+        // PIXI.Sprite or PIXI.AnimatedSprite instances to be rendered as indicators on top of the token
+        const allIndicators = await MODULE.api.getIndicators(this.document) ?? [];
 
-        // TODO: add a way for other modules to add indicators here
+        // clear existing indicators
+        this.indicators.removeChildren().forEach(c => c.destroy());
+        // re-add the current ones
+        allIndicators.forEach(icon => this.indicators.addChild(icon));
 
         this.indicators.sortChildren();
         this.indicators.renderable = true;
@@ -601,7 +710,8 @@ export function register() {
         }
         
         // Invalidate cached textures when spritesheet configuration changes
-        const needsTextureRefresh = changed.flags?.[MODULENAME]?.spritesheet !== undefined ||
+        const needsTextureRefresh = changed.flags?.[MODULENAME]?.sheetsrc !== undefined ||
+                                    changed.flags?.[MODULENAME]?.spritesheet !== undefined ||
                                     changed.flags?.[MODULENAME]?.sheetstyle !== undefined ||
                                     changed.flags?.[MODULENAME]?.animationframes !== undefined;
         
@@ -721,6 +831,7 @@ export function register() {
         return (this._movementLocks?.size ?? 0) === 0;
       }
     });
+    Hooks.callAll(`${MODULENAME}.spritesheetTokenReady`, CONFIG.Token.objectClass);
   });
 
   Hooks.on("updateToken", OnUpdateToken);

@@ -1,0 +1,88 @@
+<div class="dylans-promo-body">
+  <style>
+    #dylans-cross-promo .window-content {
+      padding: 0;
+    }
+    #dylans-cross-promo .dylans-promo-body {
+      padding: 0.75rem 1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    #dylans-cross-promo .dylans-promo-intro {
+      margin: 0;
+      line-height: 1.5;
+    }
+    #dylans-cross-promo .dylans-promo-modules {
+      margin: 0;
+      padding-left: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    #dylans-cross-promo .dylans-promo-patreon {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      background: color-mix(in srgb, #f96854 12%, transparent);
+      border: 1px solid color-mix(in srgb, #f96854 50%, transparent);
+      border-radius: 4px;
+      padding: 0.6rem 0.75rem;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s;
+    }
+    #dylans-cross-promo .dylans-promo-patreon:hover {
+      background: color-mix(in srgb, #f96854 22%, transparent);
+    }
+    #dylans-cross-promo .dylans-promo-patreon-header {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 1.05em;
+    }
+    #dylans-cross-promo .dylans-promo-patreon-header .fa-patreon {
+      color: #f96854;
+    }
+    #dylans-cross-promo .dylans-promo-patreon-desc {
+      font-size: 0.88em;
+      opacity: 0.85;
+      line-height: 1.4;
+    }
+    #dylans-cross-promo .dylans-promo-footer {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 0.1rem;
+    }
+  </style>
+  <p class="dylans-promo-intro">
+    Thanks for using <strong>{{module.title}}</strong>!
+    {{#if hasModules}}Here are a few other things you might enjoy:{{/if}}
+  </p>
+
+  {{#if hasModules}}
+  <ul class="dylans-promo-modules">
+    {{#each modules}}
+    <li>
+      <a href="{{url}}" target="_blank" rel="noopener noreferrer"><strong>{{label}}</strong></a>
+      — {{description}}
+    </li>
+    {{/each}}
+  </ul>
+  {{/if}}
+
+  <a class="dylans-promo-patreon" href="{{patreon.url}}" target="_blank" rel="noopener noreferrer">
+    <span class="dylans-promo-patreon-header">
+      <i class="fa-brands fa-patreon"></i>
+      <strong>Support me on Patreon!</strong>
+    </span>
+    <span class="dylans-promo-patreon-desc">{{patreon.description}}</span>
+  </a>
+
+  <div class="dylans-promo-footer">
+    <button type="button" data-action="dismiss">
+      <i class="fa-solid fa-check"></i> Thanks, got it!
+    </button>
+  </div>
+</div>
+
