@@ -119,6 +119,8 @@ export function register() {
       #surfingCached;
       #surfSprite;
       #surfTextures;
+      #walkFrameOffset;
+      #lastWalkFrame;
 
       constructor(document) {
         super(document);
@@ -129,6 +131,8 @@ export function register() {
         this.#localOpacity = 1;
         this.#idle = false;
         this.#run = false;
+        this.#walkFrameOffset = 0;
+        this.#lastWalkFrame = 0;
         this.#surfingCached = {
           i: undefined,
           j: undefined,
@@ -426,6 +430,23 @@ export function register() {
           }
           this.#idle = false;
         }
+
+        // Handle walk cycle continuity across chained animation steps
+        if (isMovement) {
+          const animName = options.name ?? this.animationName;
+          const isChainQueuing = !!options.chain && !!this.animationContexts.get(animName);
+          if (!isChainQueuing) {
+            if (chained) {
+              // Actual execution of a chained step — continue the walk cycle
+              this.#walkFrameOffset = this.#lastWalkFrame + 1;
+              this.#idle = false;
+            } else {
+              // Fresh movement — reset the walk cycle
+              this.#walkFrameOffset = 0;
+              this.#lastWalkFrame = 0;
+            }
+          }
+        }
         
         let from = this._PRIVATE_animationData;
         from.frame = 0;
@@ -458,7 +479,11 @@ export function register() {
         return super._PRIVATE_animate(to, options, chained).finally(()=>{
           if (!this.isSpritesheet) return;
           // start the idle animation
-          if (this.animationContexts.size == 0) this.startIdleAnimation();
+          if (this.animationContexts.size == 0) {
+            this.#walkFrameOffset = 0;
+            this.#lastWalkFrame = 0;
+            this.startIdleAnimation();
+          }
         });
       }
 
@@ -528,7 +553,8 @@ export function register() {
         const FRAMES_PER_SQUARE = 2;
         const gdx = Math.abs((changed.x ?? this._origin?.x ?? 0) - (this._origin?.x ?? 0)) * FRAMES_PER_SQUARE / sizeX;
         const gdy = Math.abs((changed.y ?? this._origin?.y ?? 0) - (this._origin?.y ?? 0)) * FRAMES_PER_SQUARE / sizeY;
-        const frame = changed.frame !== undefined ? ~~changed.frame : ~~(gdx + gdy - (Math.min(gdx, gdy) / 2));
+        const frameFromGeometry = ~~(gdx + gdy - (Math.min(gdx, gdy) / 2));
+        const frame = changed.frame !== undefined ? ~~changed.frame : frameFromGeometry + (this.#walkFrameOffset ?? 0);
 
         // set the direction
         const dx = (context?.to?.x ?? changed.x ?? 0) - (changed.x ?? context?.to?.x ?? 0);
@@ -550,6 +576,7 @@ export function register() {
           this.#idle = false;
           this.#direction = getDirectionFromAngle(changed.rotation ?? this.document.rotation);
           this.#index = frame;
+          this.#lastWalkFrame = frame; // track for continuity across chained steps
         } else {
           this.#idle = true;
           this.#direction = getDirectionFromAngle(changed.rotation ?? this.document.rotation);
