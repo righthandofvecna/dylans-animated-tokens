@@ -487,6 +487,18 @@ export function register() {
         });
       }
 
+      /**
+       * Build the regionalized animation path for a movement update.
+       *
+       * Skips the base implementation if all waypoints are intermediate to prevent a crash.
+       */
+      _PRIVATE_createAnimationMovementPath(origin, passedWaypoints) {
+        if (passedWaypoints.length > 0 && passedWaypoints.every(wp => wp.intermediate)) {
+          return [[], new Set()];
+        }
+        return super._PRIVATE_createAnimationMovementPath(origin, passedWaypoints);
+      }
+
       _getAnimationRotationSpeed() {
         return Number.POSITIVE_INFINITY; // don't animate rotation
       }
