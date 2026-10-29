@@ -424,7 +424,7 @@ export function register() {
           for (const [name, context] of this.animationContexts.entries()) {
             // Check if this is a frame-only animation (idle)
             if (context.to && context.to.frame !== undefined && !context.to.x && !context.to.y) {
-              CanvasAnimation.terminateAnimation(name);
+              foundry.canvas.animation.CanvasAnimation.terminateAnimation(name);
               this.animationContexts.delete(name);
             }
           }

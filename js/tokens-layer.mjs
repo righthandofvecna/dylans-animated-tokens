@@ -18,6 +18,7 @@ export function register() {
       if (!game.settings.get(MODULENAME, "tokenCollision")) return super.isOccupiedGridSpaceBlocking?.(gridSpace, token, { preview }) ?? false;
       
       const found = this.#getRelevantOccupyingTokens(gridSpace, token, { preview });
+      const MODULE = game.modules.get(MODULENAME);
       
       return found.some(t => {
         // Friendly tokens behavior depends on settings
@@ -27,8 +28,10 @@ export function register() {
         // If token has any statuses that should never block movement, don't block movement
         // This could be expanded based on system-specific needs
         // For now, we'll just check basic conditions
+
+        if (MODULE.api?.CanTokenMoveThrough?.(token, t) ?? false) return false;
         
-        return true; // Block movement
+        return true; // blocking
       });
     }
 
