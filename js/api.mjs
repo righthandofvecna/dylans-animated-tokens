@@ -15,6 +15,7 @@ export function register() {
   MODULE.api.isWater ??= (point)=>false;
   MODULE.api.getSurfboard ??= (tokenDoc) => `modules/${MODULENAME}/img/surfboard.json`;
   MODULE.api.RefreshTokenIndicators = RefreshTokenIndicators;
+  MODULE.api.CanTokenMoveThrough ??= (movingToken, blockingToken)=>false;
 
   socket.registerSocket("refreshTokenIndicators", async ()=>canvas?.tokens?.objects?.children?.forEach(t=>t._drawIndicators()));
 }

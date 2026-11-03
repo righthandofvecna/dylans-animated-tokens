@@ -424,7 +424,7 @@ export function register() {
           for (const [name, context] of this.animationContexts.entries()) {
             // Check if this is a frame-only animation (idle)
             if (context.to && context.to.frame !== undefined && !context.to.x && !context.to.y) {
-              CanvasAnimation.terminateAnimation(name);
+              foundry.canvas.animation.CanvasAnimation.terminateAnimation(name);
               this.animationContexts.delete(name);
             }
           }
@@ -485,6 +485,18 @@ export function register() {
             this.startIdleAnimation();
           }
         });
+      }
+
+      /**
+       * Build the regionalized animation path for a movement update.
+       *
+       * Skips the base implementation if all waypoints are intermediate to prevent a crash.
+       */
+      _PRIVATE_createAnimationMovementPath(origin, passedWaypoints) {
+        if (passedWaypoints.length > 0 && passedWaypoints.every(wp => wp.intermediate)) {
+          return [[], new Set()];
+        }
+        return super._PRIVATE_createAnimationMovementPath(origin, passedWaypoints);
       }
 
       _getAnimationRotationSpeed() {
