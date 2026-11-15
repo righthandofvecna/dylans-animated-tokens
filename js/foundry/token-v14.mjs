@@ -124,6 +124,22 @@ export function NonPrivateTokenMixin(TokenClass) {
   _PRIVATE_ring;
 
   /* -------------------------------------------- */
+
+  /**
+   * The ID of the "switch view" timeout.
+   * @type {number|null}
+   */
+  _PRIVATE_switchViewTimeout = null;
+
+  /* -------------------------------------------- */
+
+  /**
+   * The shader class of the Token's mesh when it has no dynamic ring, chosen when the mesh was created.
+   * @type {typeof PrimaryBaseSamplerShader}
+   */
+  _PRIVATE_meshShaderClass = PrimaryBaseSamplerShader;
+
+  /* -------------------------------------------- */
   /*  Initialization                              */
   /* -------------------------------------------- */
 
@@ -324,7 +340,8 @@ export function NonPrivateTokenMixin(TokenClass) {
       if ( this.vision.active ) canvas.perception.update({
         initializeVisionModes: true,
         refreshVision: true,
-        refreshLighting: true
+        refreshLighting: true,
+        refreshSounds: !this.vision.isPreview
       });
       this._PRIVATE_destroyVisionSource();
       return;
@@ -347,7 +364,8 @@ export function NonPrivateTokenMixin(TokenClass) {
         || (this.vision.active !== previousActive)
         || (this.vision.visionMode !== previousVisionMode),
       refreshVision: true,
-      refreshLighting: true
+      refreshLighting: true,
+      refreshSounds: (this.vision.active !== previousActive) && !this.vision.isPreview
     });
   };
 
@@ -430,7 +448,6 @@ export function NonPrivateTokenMixin(TokenClass) {
 
   /** @inheritdoc */
   _destroy(options) {
-    this._PRIVATE_cancelDrag();
     this._removeAllFilterEffects();
     this.stopAnimation();                       // Cancel movement animations
     canvas.primary.removeToken(this);           // Remove the PrimarySpriteMesh from the PrimaryCanvasGroup
@@ -533,6 +550,36 @@ export function NonPrivateTokenMixin(TokenClass) {
   /* -------------------------------------------- */
 
   /**
+   * Create a PrimarySpriteMesh for this Token using a specified class, shader, and options specified by the
+   * createTokenMesh hook. Called when the Token is first drawn or as the temporary target of a texture transition.
+   * @returns {PrimarySpriteMesh}
+   * @protected
+   */
+  _createMesh() {
+    const name = this.objectId;
+    const config = {meshClass: PrimarySpriteMesh, shaderClass: PrimaryBaseSamplerShader, meshOptions: {}};
+    Hooks$1.call("createTokenMesh", this, config);
+    try {
+      if ( !foundry.utils.isSubclass(config.meshClass, PrimarySpriteMesh) ) {
+        throw new Error("The createTokenMesh hook must provide a PrimarySpriteMesh subclass.");
+      }
+      if ( !foundry.utils.isSubclass(config.shaderClass, PrimaryBaseSamplerShader) ) {
+        throw new Error("The createTokenMesh hook must provide a PrimaryBaseSamplerShader subclass.");
+      }
+      const {meshClass, shaderClass, meshOptions} = config;
+      const mesh = new meshClass({...meshOptions, name, object: this, texture: this.texture, shaderClass});
+      this._PRIVATE_meshShaderClass = shaderClass;
+      return mesh;
+    } catch (err) {
+      Hooks$1.onError("Token_PRIVATE__createMesh", err, {msg: `Failed to create the mesh for ${name}`, log: "error"});
+      this._PRIVATE_meshShaderClass = PrimaryBaseSamplerShader;
+      return new PrimarySpriteMesh({name, object: this, texture: this.texture});
+    }
+  };
+
+  /* -------------------------------------------- */
+
+  /**
    * Create a point light source according to token options.
    * @returns {PointDarknessSource|PointLightSource}
    */
@@ -608,6 +655,16 @@ export function NonPrivateTokenMixin(TokenClass) {
     bars.bar1 = bars.addChild(new PIXI.Graphics());
     bars.bar2 = bars.addChild(new PIXI.Graphics());
     return bars;
+  };
+
+  /* -------------------------------------------- */
+
+  /**
+   * Refresh the token mesh shader.
+   * @protected
+   */
+  _refreshShader() {
+    this.mesh.setShaderClass(this.hasDynamicRing ? CONFIG.Token.ring.shaderClass : this._PRIVATE_meshShaderClass);
   };
 
   /* -------------------------------------------- */
@@ -1126,8 +1183,7 @@ export function NonPrivateTokenMixin(TokenClass) {
       targetToken = this._PRIVATE_prepareTargetToken(targetTexture);
 
       // Create target primary sprite mesh and assign to the target token
-      targetMesh = new PrimarySpriteMesh({object: targetToken});
-      targetMesh.texture = targetTexture;
+      targetMesh = targetToken._createMesh();
       targetToken.mesh = targetMesh;
 
       // Prepare source and target meshes and shader class
@@ -1138,7 +1194,7 @@ export function NonPrivateTokenMixin(TokenClass) {
       }
       else {
         NonPrivateToken._PRIVATE_updatePadding(this.mesh, targetMesh);
-        targetMesh.setShaderClass(PrimaryBaseSamplerShader);
+        targetMesh.setShaderClass(targetToken._PRIVATE_meshShaderClass);
       }
 
       // Prepare mesh position for rendering
@@ -2093,6 +2149,14 @@ export function NonPrivateTokenMixin(TokenClass) {
     // TODO: Can we find a solution that doesn't require special handling for hidden?
     if ( "hidden" in changed ) to.alpha = animationData.alpha;
 
+    // Reset bars animation state
+    if ( ("bar1" in changed) || ("bar2" in changed) ) {
+      this.animate({bar1: animationData.bar1, bar2: animationData.bar2},
+        {name: `${this.objectId}.animateBars`, duration: 0});
+      delete to.bar1;
+      delete to.bar2;
+    }
+
     // We need to infer subject texture if ring is enabled and texture is changed
     const ringEnabled = this.document.ring.enabled;
     const ringChanged = "ring" in changed;
@@ -2440,6 +2504,77 @@ export function NonPrivateTokenMixin(TokenClass) {
       }
     }
     this._PRIVATE_filterEffects.clear();
+  };
+
+  /* -------------------------------------------- */
+
+  /**
+   * Called when the object should be controlled because of a left or right click event.
+   * @param {PIXI.FederatedEvent} event  The triggering canvas interaction event
+   */
+  _PRIVATE_controlOnClick(event) {
+    const releaseOthers = !this.controlled && !event.shiftKey;
+    const switchView = releaseOthers && (this.document._source.level !== canvas.level.id);
+    const switchViewDelayed = switchView && (event.button === 0 ? this._canView(game.user)
+      : this._canConfigure(game.user));
+    const switchViewImmediately = switchView && !switchViewDelayed;
+    const controlled = this.control({releaseOthers, switchView: switchViewImmediately});
+    if ( !controlled || !switchViewDelayed ) return;
+    this._PRIVATE_switchViewTimeout = setTimeout(() => {
+      if ( canvas.loading || this.destroyed || !this.controlled || (this.layer.controlled.length > 1) ) return;
+      if ( this.document._source.level === canvas.level.id ) return;
+      this.scene.view({level: this.document._source.level, controlledTokens: [this.document.id]});
+    }, MouseInteractionManager.DOUBLE_CLICK_TIME_MS + 1);
+  };
+
+  /* -------------------------------------------- */
+
+  /** @inheritdoc */
+  _onRelease(options) {
+    super._onRelease(options);
+    for ( const token of this.layer.placeables ) token.initializeVisionSource();
+    canvas.perception.update({
+      refreshVision: true,
+      refreshSounds: true,
+      refreshOcclusion: this.layer.occlusionMode & CONST.TOKEN_OCCLUSION_MODES.CONTROLLED
+    });
+    this._PRIVATE_cancelDrag();
+    if ( this.layer._movementPlanningContext?.object === this ) this.layer._cancelMovementPlanning();
+    if ( this._PRIVATE_switchViewTimeout ) {
+      clearTimeout(this._PRIVATE_switchViewTimeout);
+      this._PRIVATE_switchViewTimeout = null;
+    }
+  };
+
+  /* -------------------------------------------- */
+
+  /** @override */
+  _onClickLeft(event) {
+    if ( game.activeTool === "target" ) {
+      event.stopPropagation();
+      return this.setTarget(!this.isTargeted, {releaseOthers: !event.shiftKey});
+    }
+
+    this.layer.hud.close();
+
+    // Add or remove the Token from the currently controlled set
+    if ( !this.controlled ) this._PRIVATE_controlOnClick(event);
+    else if ( event.shiftKey ) event.interactionData.release = true; // Release on unclick
+
+    // Propagate left click to the underlying canvas?
+    if ( !this._propagateLeftClick(event) ) event.stopPropagation();
+  };
+
+  /* -------------------------------------------- */
+
+  /** @override */
+  _onClickRight(event) {
+    this._PRIVATE_controlOnClick(event);
+    if ( this.hasActiveHUD ) this.layer.hud.close();
+    else this.layer.hud.bind(this);
+
+    // Propagate the right-click to the underlying canvas?
+    if ( !this._propagateRightClick(event) ) event.stopPropagation();
   };
 
   /* -------------------------------------------- */
